@@ -1,9 +1,12 @@
+let rom: DataView;
+
 /**
- * Start it up
- *
+ * Load rom into memory
  */
-function windowLoad(): void {
-    // Logic goes here
+function loadRom(): void {
+    fetch("invaders")
+    .then((response) => { return response.arrayBuffer(); })
+    .then((buffer) => { rom = new DataView(buffer); } );
 }
 
-window.onload = windowLoad;
+window.onload = loadRom;
