@@ -190,7 +190,7 @@ class State8080 {
     public register = new Registers(); // Register container
     // public pc: DataView = new DataView(new ArrayBuffer(2)); // Program Counter
     public int: boolean = true; // Interrupts enabled
-    public memory: DataView = new DataView(new ArrayBuffer(8192));
+    public memory: DataView = new DataView(new ArrayBuffer(0x4000));
     public cc: ConditionCodes = new ConditionCodes();
     public ops: OpCodes = new OpCodes(this);
 
@@ -201,7 +201,10 @@ class State8080 {
     constructor(rom: string) {
         fetch(rom)
         .then(response => response.arrayBuffer())
-        .then(buffer => { this.memory = new DataView(buffer); } )
+        .then(buffer => {
+            let tmp = ArrayBuffer.transfer(buffer, 0x4000);
+            this.memory = new DataView(tmp);
+        } )
         .then(() => { this.init(); })
         .then(() => { log.drawMemory(this.memory); });
         // this.pc.setUint16(0, 0);
@@ -270,14 +273,53 @@ class OpCodes {
     }
 
     /**
+     * B <- byte 3,CL <- byte 2
+     */
+    public 0x01 = () => {
+        this.state.register.c = this.state.memory.getUint8(this.state.register.pc + 1);
+        this.state.register.b = this.state.memory.getUint8(this.state.register.pc + 2);
+        log.ops(`LXI B ${this.state.register.b.toString(16).padStart(2, "0")}${this.state.register.c.toString(16).padStart(2, "0")}`);
+        return 3;
+    }
+
+    /**
      * Move byte 2 to b
      */
     public 0x06 = () => {
         let byte = this.state.memory.getUint8(this.state.register.pc + 1);
         this.state.register.b = byte;
-        let b = byte.toString(16);
-        log.ops(`MVI B ${b}`);
+        log.ops(`MVI B ${byte.toString(16)}`);
         return 2;
+    }
+
+    /**
+     * D <- byte 3, E <- byte 2
+     */
+    public 0x11 = () => {
+        this.state.register.e = this.state.memory.getUint8(this.state.register.pc + 1);
+        this.state.register.d = this.state.memory.getUint8(this.state.register.pc + 2);
+        log.ops(`LXI D ${this.state.register.d.toString(16).padStart(2, "0")}${this.state.register.e.toString(16).padStart(2, "0")}`);
+        return 3;
+    }
+
+    /**
+     * A <- (DE)
+     */
+    public 0x1a = () => {
+        let addr = (this.state.register.d << 8) + this.state.register.e;
+        this.state.register.a = this.state.memory.getUint8(addr);
+        log.ops(`LDAX D (${addr.toString(16)})`);
+        return 1;
+    }
+
+    /**
+     * H <- byte 3, L <- byte 2
+     */
+    public 0x21 = () => {
+        this.state.register.l = this.state.memory.getUint8(this.state.register.pc + 1);
+        this.state.register.h = this.state.memory.getUint8(this.state.register.pc + 2);
+        log.ops(`LXI H ${this.state.register.h.toString(16).padStart(2, "0")}${this.state.register.l.toString(16).padStart(2, "0")}`);
+        return 3;
     }
 
     /**
@@ -300,9 +342,81 @@ class OpCodes {
     public 0x31 = () => {
         let sp = this.state.memory.getInt16(this.state.register.pc + 1, true);
         this.state.register.sp = sp;
-        let b = sp.toString(16);
-        log.ops(`LXI SP ${b}`);
+        log.ops(`LXI SP ${sp.toString(16)}`);
         return 3;
+    }
+
+    /**
+     * Move B into B
+     */
+    public 0x40 = () => {
+        this.state.register.b = this.state.register.b;
+        log.ops(`MOV B,B`);
+        return 1;
+    }
+
+    /**
+     * Move C into B
+     */
+    public 0x41 = () => {
+        this.state.register.b = this.state.register.c;
+        log.ops(`MOV B,C`);
+        return 1;
+    }
+
+    /**
+     * Move D into B
+     */
+    public 0x42 = () => {
+        this.state.register.b = this.state.register.d;
+        log.ops(`MOV B,D`);
+        return 1;
+    }
+
+    /**
+     * Move E into B
+     */
+    public 0x43 = () => {
+        this.state.register.b = this.state.register.e;
+        log.ops(`MOV B,E`);
+        return 1;
+    }
+
+    /**
+     * Move H into B
+     */
+    public 0x44 = () => {
+        this.state.register.b = this.state.register.h;
+        log.ops(`MOV B,H`);
+        return 1;
+    }
+
+    /**
+     * Move L into B
+     */
+    public 0x45 = () => {
+        this.state.register.b = this.state.register.l;
+        log.ops(`MOV B,L`);
+        return 1;
+    }
+
+    /**
+     * Move (HL) into B
+     */
+    public 0x46 = () => {
+        let addr = (this.state.register.h << 8) + this.state.register.l;
+        this.state.register.b = this.state.memory.getUint8(addr);
+        log.ops(`MOV B,M (${addr.toString(16)})`);
+        return 1;
+    }
+
+    /**
+     * Move A into B
+     */
+    public 0x47 = () => {
+        this.state.register.b = this.state.register.a;
+        log.ops(`MOV B,A`);
+        return 1;
     }
 
     /**
@@ -316,8 +430,7 @@ class OpCodes {
         }
         let addr = this.state.memory.getUint16(this.state.register.pc + 1, true);
         this.state.register.pc = addr;
-        let a = addr.toString(16);
-        log.ops(`JNZ ${a}`);
+        log.ops(`JNZ ${addr.toString(16)}`);
         return 0;
     }
 
@@ -327,8 +440,7 @@ class OpCodes {
     public 0xc3 = () => {
         let addr = this.state.memory.getUint16(this.state.register.pc + 1, true);
         this.state.register.pc = addr;
-        let a = addr.toString(16);
-        log.ops(`JMP ${a}`);
+        log.ops(`JMP ${addr.toString(16)}`);
         return 0;
     }
 
@@ -346,8 +458,7 @@ class OpCodes {
         this.state.memory.setUint8(sp - 2, ret_lo);
         this.state.register.sp -= 2;
         this.state.register.pc = addr;
-        let a = addr.toString(16);
-        log.ops(`CALL ${a}`);
+        log.ops(`CALL ${addr.toString(16)}`);
         return 0;
     }
 
@@ -411,4 +522,18 @@ class Logger {
         }
         reg_inp.value = val.toString(16);
     }
+}
+
+
+if (typeof ArrayBuffer.transfer === "undefined") {
+    ArrayBuffer.transfer = function(source, length) {
+        if (!(source instanceof ArrayBuffer))
+            throw new TypeError('Source must be an instance of ArrayBuffer');
+        if (length <= source.byteLength)
+            return source.slice(0, length);
+        var sourceView = new Uint8Array(source),
+            destView = new Uint8Array(new ArrayBuffer(length));
+        destView.set(sourceView);
+        return destView.buffer;
+    };
 }
