@@ -3,9 +3,118 @@
         <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
         <title>WAKKA WAKKA</title>
         <!-- <link rel="stylesheet" type="text/css" href="invaders.css" /> -->
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
         <script type="text/javascript" src="invaders.js"></script>
     </head>
     <body>
-        <pre></pre>
+        <div class="container-fluid pull-left">
+            <div class="row">
+                <div class="col-sm-4">
+                    <h5>Memory</h5>
+                    <pre id="memory" style="overflow-y: auto; height: 500px;"></pre>
+                </div>
+                <div class="col-sm-4">
+                    <h5>Control</h5>
+                    <button id="run" type="button" class="btn">Run</button>
+                    <button id="step" type="button" class="btn">Step</button>
+                    <h5>Ops</h5>
+                    <pre id="ops" style="overflow-y: auto; height: 500px;"></pre>
+                </div>
+                <div class="col-sm-2">
+                    <h5>State</h5>
+                    <div class="form">
+                        <div class="form-group row">
+                            <div class="col-sm-6">
+                                <input id="a" type="text" maxlength="2" class="form-control">
+                            </div>
+                            <label class="col-sm-6 col-form-label">a</label>
+                        </div>
+                        <div class="form-group row">
+                            <div class="col-sm-6">
+                                <input id="b" type="text" maxlength="2" class="form-control">
+                            </div>
+                            <label class="col-sm-6 col-form-label">b</label>
+                        </div>
+                        <div class="form-group row">
+                            <div class="col-sm-6">
+                                <input id="c" type="text" maxlength="2" class="form-control">
+                            </div>
+                            <label class="col-sm-6 col-form-label">c</label>
+                        </div>
+                        <div class="form-group row">
+                            <div class="col-sm-6">
+                                <input id="d" type="text" maxlength="2" class="form-control">
+                            </div>
+                            <label class="col-sm-6 col-form-label">d</label>
+                        </div>
+                        <div class="form-group row">
+                            <div class="col-sm-6">
+                                <input id="e" type="text" maxlength="2" class="form-control">
+                            </div>
+                            <label class="col-sm-6 col-form-label">e</label>
+                        </div>
+                        <div class="form-group row">
+                            <div class="col-sm-6">
+                                <input id="h" type="text" maxlength="2" class="form-control">
+                            </div>
+                            <label class="col-sm-6 col-form-label">h</label>
+                        </div>
+                        <div class="form-group row">
+                            <div class="col-sm-6">
+                                <input id="l" type="text" maxlength="2" class="form-control">
+                            </div>
+                            <label class="col-sm-6 col-form-label">l</label>
+                        </div>
+                        <div class="form-group row" title="Program Counter">
+                            <div class="col-sm-6">
+                                <input id="pc" type="text" maxlength="4" class="form-control">
+                            </div>
+                            <label class="col-sm-6 col-form-label">pc</label>
+                        </div>
+                        <div class="form-group row" title="Stack Pointer">
+                            <div class="col-sm-6">
+                                <input id="sp" type="text" maxlength="4" class="form-control">
+                            </div>
+                            <label class="col-sm-6 col-form-label">sp</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-sm-2">
+                    <h5>Condition</h5>
+                    <div class="form">
+                        <div class="form-group row" title="Result equal to zero">
+                            <div class="col-sm-6">
+                                <input id="z" type="text" maxlength="2" class="form-control">
+                            </div>
+                            <label class="col-sm-6 col-form-label">z</label>
+                        </div>
+                        <div class="form-group row" title="Result has bit 7 equal to 1 (negative)">
+                            <div class="col-sm-6">
+                                <input id="s" type="text" maxlength="2" class="form-control">
+                            </div>
+                            <label class="col-sm-6 col-form-label">s</label>
+                        </div>
+                        <div class="form-group row" tite="Result has even parity">
+                            <div class="col-sm-6">
+                                <input id="p" type="text" maxlength="2" class="form-control">
+                            </div>
+                            <label class="col-sm-6 col-form-label">p</label>
+                        </div>
+                        <div class="form-group row" title="Result has a carry">
+                            <div class="col-sm-6">
+                                <input id="cy" type="text" maxlength="2" class="form-control">
+                            </div>
+                            <label class="col-sm-6 col-form-label">cy</label>
+                        </div>
+                        <div class="form-group row" title="Result has an aux carry">
+                            <div class="col-sm-6">
+                                <input id="ac" type="text" maxlength="2" class="form-control">
+                            </div>
+                            <label class="col-sm-6 col-form-label">ac</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </body>
 </html>
