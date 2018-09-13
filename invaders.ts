@@ -420,6 +420,514 @@ class OpCodes {
     }
 
     /**
+     * Move B into C
+     */
+    public 0x48 = () => {
+        this.state.register.c = this.state.register.b;
+        log.ops(`MOV C,B`);
+        return 1;
+    }
+
+    /**
+     * Move C into C
+     */
+    public 0x49 = () => {
+        this.state.register.c = this.state.register.c;
+        log.ops(`MOV C,C`);
+        return 1;
+    }
+
+    /**
+     * Move D into C
+     */
+    public 0x4a = () => {
+        this.state.register.c = this.state.register.d;
+        log.ops(`MOV C,D`);
+        return 1;
+    }
+
+    /**
+     * Move E into C
+     */
+    public 0x4b = () => {
+        this.state.register.c = this.state.register.e;
+        log.ops(`MOV C,E`);
+        return 1;
+    }
+
+    /**
+     * Move H into C
+     */
+    public 0x4c = () => {
+        this.state.register.c = this.state.register.h;
+        log.ops(`MOV C,H`);
+        return 1;
+    }
+
+    /**
+     * Move L into C
+     */
+    public 0x4d = () => {
+        this.state.register.c = this.state.register.l;
+        log.ops(`MOV C,L`);
+        return 1;
+    }
+
+    /**
+     * Move (HL) into C
+     */
+    public 0x4e = () => {
+        let addr = (this.state.register.h << 8) + this.state.register.l;
+        this.state.register.c = this.state.memory.getUint8(addr);
+        log.ops(`MOV C,M (${addr.toString(16)})`);
+        return 1;
+    }
+
+    /**
+     * Move A into C
+     */
+    public 0x4f = () => {
+        this.state.register.c = this.state.register.a;
+        log.ops(`MOV C,A`);
+        return 1;
+    }
+
+    /**
+     * Move B into D
+     */
+    public 0x50 = () => {
+        this.state.register.d = this.state.register.b;
+        log.ops(`MOV D,B`);
+        return 1;
+    }
+
+    /**
+     * Move C into D
+     */
+    public 0x51 = () => {
+        this.state.register.d = this.state.register.c;
+        log.ops(`MOV D,C`);
+        return 1;
+    }
+
+    /**
+     * Move D into D
+     */
+    public 0x52 = () => {
+        this.state.register.d = this.state.register.d;
+        log.ops(`MOV D,D`);
+        return 1;
+    }
+
+    /**
+     * Move E into D
+     */
+    public 0x53 = () => {
+        this.state.register.d = this.state.register.e;
+        log.ops(`MOV D,E`);
+        return 1;
+    }
+
+    /**
+     * Move H into D
+     */
+    public 0x54 = () => {
+        this.state.register.d = this.state.register.h;
+        log.ops(`MOV D,H`);
+        return 1;
+    }
+
+    /**
+     * Move L into D
+     */
+    public 0x55 = () => {
+        this.state.register.d = this.state.register.l;
+        log.ops(`MOV D,L`);
+        return 1;
+    }
+
+    /**
+     * Move (HL) into D
+     */
+    public 0x56 = () => {
+        let addr = (this.state.register.h << 8) + this.state.register.l;
+        this.state.register.d = this.state.memory.getUint8(addr);
+        log.ops(`MOV D,M (${addr.toString(16)})`);
+        return 1;
+    }
+
+    /**
+     * Move A into D
+     */
+    public 0x57 = () => {
+        this.state.register.d = this.state.register.a;
+        log.ops(`MOV D,A`);
+        return 1;
+    }
+
+    /**
+     * Move B into E
+     */
+    public 0x58 = () => {
+        this.state.register.e = this.state.register.b;
+        log.ops(`MOV E,B`);
+        return 1;
+    }
+
+    /**
+     * Move C into E
+     */
+    public 0x59 = () => {
+        this.state.register.e = this.state.register.c;
+        log.ops(`MOV E,C`);
+        return 1;
+    }
+
+    /**
+     * Move D into E
+     */
+    public 0x5a = () => {
+        this.state.register.e = this.state.register.d;
+        log.ops(`MOV E,D`);
+        return 1;
+    }
+
+    /**
+     * Move E into E
+     */
+    public 0x5b = () => {
+        this.state.register.e = this.state.register.e;
+        log.ops(`MOV E,E`);
+        return 1;
+    }
+
+    /**
+     * Move H into E
+     */
+    public 0x5c = () => {
+        this.state.register.e = this.state.register.h;
+        log.ops(`MOV E,H`);
+        return 1;
+    }
+
+    /**
+     * Move L into E
+     */
+    public 0x5d = () => {
+        this.state.register.e = this.state.register.l;
+        log.ops(`MOV E,L`);
+        return 1;
+    }
+
+    /**
+     * Move (HL) into E
+     */
+    public 0x5e = () => {
+        let addr = (this.state.register.h << 8) + this.state.register.l;
+        this.state.register.e = this.state.memory.getUint8(addr);
+        log.ops(`MOV E,M (${addr.toString(16)})`);
+        return 1;
+    }
+
+    /**
+     * Move A into E
+     */
+    public 0x5f = () => {
+        this.state.register.e = this.state.register.a;
+        log.ops(`MOV E,A`);
+        return 1;
+    }
+
+    /**
+     * Move B into H
+     */
+    public 0x60 = () => {
+        this.state.register.h = this.state.register.b;
+        log.ops(`MOV H,B`);
+        return 1;
+    }
+
+    /**
+     * Move C into H
+     */
+    public 0x61 = () => {
+        this.state.register.h = this.state.register.c;
+        log.ops(`MOV H,C`);
+        return 1;
+    }
+
+    /**
+     * Move D into H
+     */
+    public 0x62 = () => {
+        this.state.register.h = this.state.register.d;
+        log.ops(`MOV H,D`);
+        return 1;
+    }
+
+    /**
+     * Move E into H
+     */
+    public 0x63 = () => {
+        this.state.register.h = this.state.register.e;
+        log.ops(`MOV H,E`);
+        return 1;
+    }
+
+    /**
+     * Move H into H
+     */
+    public 0x64 = () => {
+        this.state.register.h = this.state.register.h;
+        log.ops(`MOV H,H`);
+        return 1;
+    }
+
+    /**
+     * Move L into H
+     */
+    public 0x65 = () => {
+        this.state.register.h = this.state.register.l;
+        log.ops(`MOV H,L`);
+        return 1;
+    }
+
+    /**
+     * Move (HL) into H
+     */
+    public 0x66 = () => {
+        let addr = (this.state.register.h << 8) + this.state.register.l;
+        this.state.register.h = this.state.memory.getUint8(addr);
+        log.ops(`MOV H,M (${addr.toString(16)})`);
+        return 1;
+    }
+
+    /**
+     * Move A into H
+     */
+    public 0x67 = () => {
+        this.state.register.h = this.state.register.a;
+        log.ops(`MOV H,A`);
+        return 1;
+    }
+
+    /**
+     * Move B into L
+     */
+    public 0x68 = () => {
+        this.state.register.l = this.state.register.b;
+        log.ops(`MOV L,B`);
+        return 1;
+    }
+
+    /**
+     * Move C into L
+     */
+    public 0x69 = () => {
+        this.state.register.l = this.state.register.c;
+        log.ops(`MOV L,C`);
+        return 1;
+    }
+
+    /**
+     * Move D into L
+     */
+    public 0x6a = () => {
+        this.state.register.l = this.state.register.d;
+        log.ops(`MOV L,D`);
+        return 1;
+    }
+
+    /**
+     * Move E into L
+     */
+    public 0x6b = () => {
+        this.state.register.l = this.state.register.e;
+        log.ops(`MOV L,E`);
+        return 1;
+    }
+
+    /**
+     * Move H into L
+     */
+    public 0x6c = () => {
+        this.state.register.l = this.state.register.h;
+        log.ops(`MOV L,H`);
+        return 1;
+    }
+
+    /**
+     * Move L into L
+     */
+    public 0x6d = () => {
+        this.state.register.l = this.state.register.l;
+        log.ops(`MOV L,L`);
+        return 1;
+    }
+
+    /**
+     * Move (HL) into L
+     */
+    public 0x6e = () => {
+        let addr = (this.state.register.h << 8) + this.state.register.l;
+        this.state.register.l = this.state.memory.getUint8(addr);
+        log.ops(`MOV L,M (${addr.toString(16)})`);
+        return 1;
+    }
+
+    /**
+     * Move A into L
+     */
+    public 0x6f = () => {
+        this.state.register.l = this.state.register.a;
+        log.ops(`MOV L,A`);
+        return 1;
+    }
+
+    /**
+     * Move B into M
+     */
+    public 0x70 = () => {
+        let m = (this.state.register.h << 8) + this.state.register.l;
+        this.state.memory.setUint8(m, this.state.register.b);
+        log.ops(`MOV M,B (${m})`);
+        return 1;
+    }
+
+    /**
+     * Move C into M
+     */
+    public 0x71 = () => {
+        let m = (this.state.register.h << 8) + this.state.register.l;
+        this.state.memory.setUint8(m, this.state.register.c);
+        log.ops(`MOV M,C (${m})`);
+        return 1;
+    }
+
+    /**
+     * Move D into M
+     */
+    public 0x72 = () => {
+        let m = (this.state.register.h << 8) + this.state.register.l;
+        this.state.memory.setUint8(m, this.state.register.d);
+        log.ops(`MOV M,D (${m})`);
+        return 1;
+    }
+
+    /**
+     * Move E into M
+     */
+    public 0x73 = () => {
+        let m = (this.state.register.h << 8) + this.state.register.l;
+        this.state.memory.setUint8(m, this.state.register.e);
+        log.ops(`MOV M,E (${m})`);
+        return 1;
+    }
+
+    /**
+     * Move H into M
+     */
+    public 0x74 = () => {
+        let m = (this.state.register.h << 8) + this.state.register.l;
+        this.state.memory.setUint8(m, this.state.register.h);
+        log.ops(`MOV M,H (${m})`);
+        return 1;
+    }
+
+    /**
+     * Move L into M
+     */
+    public 0x75 = () => {
+        let m = (this.state.register.h << 8) + this.state.register.l;
+        this.state.memory.setUint8(m, this.state.register.l);
+        log.ops(`MOV M,L (${m})`);
+        return 1;
+    }
+
+    /**
+     * Move A into M
+     */
+    public 0x77 = () => {
+        let m = (this.state.register.h << 8) + this.state.register.l;
+        this.state.memory.setUint8(m, this.state.register.a);
+        log.ops(`MOV M,A (${m})`);
+        return 1;
+    }
+
+    /**
+     * Move B into A
+     */
+    public 0x78 = () => {
+        this.state.register.a = this.state.register.b;
+        log.ops(`MOV A,B`);
+        return 1;
+    }
+
+    /**
+     * Move C into A
+     */
+    public 0x79 = () => {
+        this.state.register.a = this.state.register.c;
+        log.ops(`MOV A,C`);
+        return 1;
+    }
+
+    /**
+     * Move D into A
+     */
+    public 0x7a = () => {
+        this.state.register.a = this.state.register.d;
+        log.ops(`MOV A,D`);
+        return 1;
+    }
+
+    /**
+     * Move E into A
+     */
+    public 0x7b = () => {
+        this.state.register.a = this.state.register.e;
+        log.ops(`MOV A,E`);
+        return 1;
+    }
+
+    /**
+     * Move H into A
+     */
+    public 0x7c = () => {
+        this.state.register.a = this.state.register.h;
+        log.ops(`MOV A,H`);
+        return 1;
+    }
+
+    /**
+     * Move L into A
+     */
+    public 0x7d = () => {
+        this.state.register.a = this.state.register.l;
+        log.ops(`MOV A,L`);
+        return 1;
+    }
+
+    /**
+     * Move (HL) into A
+     */
+    public 0x7e = () => {
+        let addr = (this.state.register.h << 8) + this.state.register.l;
+        this.state.register.a = this.state.memory.getUint8(addr);
+        log.ops(`MOV A,M (${addr.toString(16)})`);
+        return 1;
+    }
+
+    /**
+     * Move A into A
+     */
+    public 0x7f = () => {
+        this.state.register.a = this.state.register.a;
+        log.ops(`MOV A,A`);
+        return 1;
+    }
+
+    /**
      * Jump to address contained in bytes 2 and 3 if z is 0
      */
     public 0xc2 = () => {
