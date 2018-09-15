@@ -15,6 +15,7 @@ let log: Logger;
 function loadRom(): void {
     log = new Logger();
     invaders = new State8080("invaders");
+    invaders.io = new SpaceInvadersIO();
     // invaders = new State8080("8080EXM.COM");
     // invaders = new State8080("cpudiag.bin");
     let run_btn = document.getElementById("run");
@@ -526,6 +527,25 @@ class Memory {
     }
 }
 
+class IO8080 {}
+class SpaceInvadersIO extends IO8080 {
+    private alpha = [
+        "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V",
+        "W", "X", "Y", "Z", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "<", ">", " "
+    ];
+
+    /**
+     * Write port 6 for watchdog
+     */
+    public set 0x06(v: number) {
+        if (typeof this.alpha[v] === "undefined") {
+            console.log(v);
+            return;
+        }
+        console.log(this.alpha[v]);
+    }
+}
+
 class State8080 {
     public ready: boolean = false; // Finished loading, ready to execute
     public register = new Registers(); // Register container
@@ -534,6 +554,7 @@ class State8080 {
     public cc: ConditionCodes = new ConditionCodes(this);
     public ops: OpCodes = new OpCodes(this);
     public cycle = 0; // Number of cycles executed
+    public io!: IO8080;
 
     /**
      * Creates an instance of State8080
@@ -762,6 +783,17 @@ class OpCodes {
     }
 
     /**
+     * A = A >> 1; bit 7 = prev bit 0; CY = prev bit 0
+     */
+    public 0x0f = () => {
+        let a = this.state.register.a;
+        this.state.register.a = ((a & 1) << 7) | (a >> 1);
+        this.state.cc.cy = Number(1 == (a & 1));
+        log.ops(`RRC`);
+        this.state.register.pc += 1;
+    }
+
+    /**
      * D <- byte 3, E <- byte 2
      */
     public 0x11 = () => {
@@ -874,6 +906,14 @@ class OpCodes {
         this.state.register.e = byte;
         log.ops(`MVI E ${byte.toString(16)}`);
         this.state.register.pc += 2;
+    }
+
+    public 0x1f = () => {
+        let a = this.state.register.a;
+        this.state.register.a = (this.state.cc.cy << 7) | (a >> 1);
+        this.state.cc.cy = Number(1 == (a & 1));
+        log.ops(`RAR`);
+        this.state.register.pc += 1;
     }
 
     /**
@@ -989,6 +1029,15 @@ class OpCodes {
         this.state.register.l = byte;
         log.ops(`MVI L ${byte.toString(16)}`);
         this.state.register.pc += 2;
+    }
+
+    /**
+     * A <- !A
+     */
+    public 0x2f = () => {
+
+        log.ops(`CMA`);
+        this.state.register.pc += 1;
     }
 
     /**
@@ -2631,8 +2680,12 @@ class OpCodes {
     public 0xd3 = () => {
         let port = this.state.memory.get(this.state.register.pc + 1);
         log.ops(`OUT ${port.toString(16)} (${this.state.register.a})`);
-        this.state.register.pc += 1;
-        throw "Not finished implementing";
+        try {
+            this.state.io[port] = this.state.register.a;
+        } catch(e) {
+            throw "Unimplemented io port access";
+        }
+        this.state.register.pc += 2;
     }
 
     /**
@@ -2692,6 +2745,19 @@ class OpCodes {
     }
 
     /**
+     * A <- A & data
+     */
+    public 0xe6 = () => {
+        let data = this.state.memory.get(this.state.register.pc + 1);
+        let ans = this.state.register.a & data;
+        this.state.cc.setSZP(ans);
+        this.state.cc.carry(ans);
+        this.state.register.a = ans;
+        this.state.register.pc += 2;
+        log.ops(`ANI ${data}`);
+    }
+
+    /**
      * if Parity Even, RET
      */
     public 0xe8 = () => {
@@ -2736,6 +2802,15 @@ class OpCodes {
     }
 
     /**
+     * Disable Interrupts
+     */
+    public 0xf3 = () => {
+        this.state.int = false;
+        this.state.register.pc += 1;
+        log.ops(`DI`);
+    }
+
+    /**
      * (sp-2)<-flags; (sp-1)<-A; sp <- sp - 2
      */
     public 0xf5 = () => {
@@ -2756,6 +2831,15 @@ class OpCodes {
             return;
         }
         this.return("RM");
+    }
+
+    /**
+     * Enable Interrupts
+     */
+    public 0xfb = () => {
+        this.state.int = true;
+        this.state.register.pc += 1;
+        log.ops(`EI`);
     }
 
     /**
