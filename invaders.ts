@@ -608,7 +608,8 @@ class State8080 {
         this.ops[opcode]();
         this.cycle += this.ops.cycle[opcode];
         if (this.ready && cur_step < steps) {
-            new Promise(resolve => setTimeout(resolve)).then(() => { cur_step++; this.exec(cur_step, steps); });
+            // new Promise(resolve => setTimeout(resolve)).then(() => { cur_step++; this.exec(cur_step, steps); });
+            setTimeout(() => { cur_step++; this.exec(cur_step, steps); });
         }
     }
 }
@@ -653,6 +654,16 @@ class OpCodes {
         this.state.register.b = this.state.memory.get(this.state.register.pc + 2);
         log.ops(`LXI B ${this.state.register.b.toString(16).padStart(2, "0")}${this.state.register.c.toString(16).padStart(2, "0")}`);
         this.state.register.pc += 3;
+    }
+
+    /**
+     * (BC) <- A
+     */
+    public 0x02 = () => {
+        let addr = this.state.register.bc;
+        this.state.memory.set(addr, this.state.register.a);
+        log.ops(`STAX B (${addr.toString(16)})`);
+        this.state.register.pc += 1;
     }
 
     /**
@@ -704,6 +715,16 @@ class OpCodes {
     }
 
     /**
+     * A <- (BC)
+     */
+    public 0x0a = () => {
+        let addr = this.state.register.bc;
+        this.state.register.a = this.state.memory.get(addr);
+        log.ops(`LDAX B (${addr.toString(16)})`);
+        this.state.register.pc += 1;
+    }
+
+    /**
      * BC <- BC - 1
      */
     public 0x0b = () => {
@@ -748,6 +769,16 @@ class OpCodes {
         this.state.register.d = this.state.memory.get(this.state.register.pc + 2);
         log.ops(`LXI D ${this.state.register.de.toString(16).padStart(4, "0")}`);
         this.state.register.pc += 3;
+    }
+
+    /**
+     * (DE) <- A
+     */
+    public 0x12 = () => {
+        let addr = this.state.register.de;
+        this.state.memory.set(addr, this.state.register.a);
+        log.ops(`STAX D (${addr.toString(16)})`);
+        this.state.register.pc += 1;
     }
 
     /**
@@ -856,6 +887,16 @@ class OpCodes {
     }
 
     /**
+     * (adr) <-L; (adr+1)<-H
+     */
+    public 0x22 = () => {
+        let addr = this.state.memory.get16(this.state.register.pc + 1);
+        this.state.register.hl = this.state.memory.get16(addr);
+        log.ops(`SHLD ${addr.toString(16).padStart(4, "0")}`);
+        this.state.register.pc += 3;
+    }
+
+    /**
      * HL <- HL + 1
      */
     public 0x23 = () => {
@@ -904,6 +945,16 @@ class OpCodes {
     }
 
     /**
+     * L <- (adr); H<-(adr+1)
+     */
+    public 0x2a = () => {
+        let addr = this.state.memory.get16(this.state.register.pc + 1);
+        this.state.register.hl = this.state.memory.get16(addr);
+        log.ops(`LDAX ${addr.toString(16).padStart(4, "0")}`);
+        this.state.register.pc += 3;
+    }
+
+    /**
      * HL <- HL - 1
      */
     public 0x2b = () => {
@@ -947,6 +998,16 @@ class OpCodes {
         let sp = this.state.memory.get16(this.state.register.pc + 1);
         this.state.register.sp = sp;
         log.ops(`LXI SP ${sp.toString(16)}`);
+        this.state.register.pc += 3;
+    }
+
+    /**
+     * (adr) <- A
+     */
+    public 0x32 = () => {
+        let addr = this.state.memory.get16(this.state.register.pc + 1);
+        this.state.memory.set(addr, this.state.register.a);
+        log.ops(`STA ${addr.toString(16).padStart(4, "0")}`);
         this.state.register.pc += 3;
     }
 
@@ -1002,6 +1063,16 @@ class OpCodes {
         this.state.register.hl = ans;
         log.ops(`DAD SP`);
         this.state.register.pc += 1;
+    }
+
+    /**
+     * A <- (adr)
+     */
+    public 0x3a = () => {
+        let addr = this.state.memory.get16(this.state.register.pc + 1);
+        this.state.register.a = this.state.memory.get(addr);
+        log.ops(`LDAX ${addr.toString(16).padStart(4, "0")}`);
+        this.state.register.pc += 3;
     }
 
     /**
@@ -2196,6 +2267,190 @@ class OpCodes {
         this.state.register.a = ans;
         this.state.register.pc += 1;
         log.ops(`XRA A`);
+    }
+
+    /**
+     * A <- A | B
+     */
+    public 0xb0 = () => {
+        let ans = this.state.register.a | this.state.register.b;
+        this.state.cc.setSZP(ans);
+        this.state.cc.carry(ans);
+        this.state.register.a = ans;
+        this.state.register.pc += 1;
+        log.ops(`ORA B`);
+    }
+
+    /**
+     * A <- A | C
+     */
+    public 0xb1 = () => {
+        let ans = this.state.register.a | this.state.register.c;
+        this.state.cc.setSZP(ans);
+        this.state.cc.carry(ans);
+        this.state.register.a = ans;
+        this.state.register.pc += 1;
+        log.ops(`ORA C`);
+    }
+
+    /**
+     * A <- A | D
+     */
+    public 0xb2 = () => {
+        let ans = this.state.register.a | this.state.register.d;
+        this.state.cc.setSZP(ans);
+        this.state.cc.carry(ans);
+        this.state.register.a = ans;
+        this.state.register.pc += 1;
+        log.ops(`ORA D`);
+    }
+
+    /**
+     * A <- A | E
+     */
+    public 0xb3 = () => {
+        let ans = this.state.register.a | this.state.register.e;
+        this.state.cc.setSZP(ans);
+        this.state.cc.carry(ans);
+        this.state.register.a = ans;
+        this.state.register.pc += 1;
+        log.ops(`ORA E`);
+    }
+
+    /**
+     * A <- A | H
+     */
+    public 0xb4 = () => {
+        let ans = this.state.register.a | this.state.register.h;
+        this.state.cc.setSZP(ans);
+        this.state.cc.carry(ans);
+        this.state.register.a = ans;
+        this.state.register.pc += 1;
+        log.ops(`ORA H`);
+    }
+
+    /**
+     * A <- A | L
+     */
+    public 0xb5 = () => {
+        let ans = this.state.register.a | this.state.register.l;
+        this.state.cc.setSZP(ans);
+        this.state.cc.carry(ans);
+        this.state.register.a = ans;
+        this.state.register.pc += 1;
+        log.ops(`ORA L`);
+    }
+
+    /**
+     * A <- A | (HL)
+     */
+    public 0xb6 = () => {
+        let ans = this.state.register.a | this.state.memory.get(this.state.register.hl);
+        this.state.cc.setSZP(ans);
+        this.state.cc.carry(ans);
+        this.state.register.a = ans;
+        this.state.register.pc += 1;
+        log.ops(`ORA (HL)`);
+    }
+
+    /**
+     * A <- A | A
+     */
+    public 0xb7 = () => {
+        let ans = this.state.register.a | this.state.register.a;
+        this.state.cc.setSZP(ans);
+        this.state.cc.carry(ans);
+        this.state.register.a = ans;
+        this.state.register.pc += 1;
+        log.ops(`ORA A`);
+    }
+
+    /**
+     * A - B
+     */
+    public 0xb8 = () => {
+        let ans = this.state.register.a ^ this.state.register.b;
+        this.state.cc.setSZP(ans);
+        this.state.cc.carry(ans);
+        this.state.register.pc += 1;
+        log.ops(`CMP B`);
+    }
+
+    /**
+     * A - C
+     */
+    public 0xb9 = () => {
+        let ans = this.state.register.a ^ this.state.register.c;
+        this.state.cc.setSZP(ans);
+        this.state.cc.carry(ans);
+        this.state.register.pc += 1;
+        log.ops(`CMP C`);
+    }
+
+    /**
+     * A - D
+     */
+    public 0xba = () => {
+        let ans = this.state.register.a ^ this.state.register.d;
+        this.state.cc.setSZP(ans);
+        this.state.cc.carry(ans);
+        this.state.register.pc += 1;
+        log.ops(`CMP D`);
+    }
+
+    /**
+     * A - E
+     */
+    public 0xbb = () => {
+        let ans = this.state.register.a ^ this.state.register.e;
+        this.state.cc.setSZP(ans);
+        this.state.cc.carry(ans);
+        this.state.register.pc += 1;
+        log.ops(`CMP E`);
+    }
+
+    /**
+     * A - H
+     */
+    public 0xbc = () => {
+        let ans = this.state.register.a ^ this.state.register.h;
+        this.state.cc.setSZP(ans);
+        this.state.cc.carry(ans);
+        this.state.register.pc += 1;
+        log.ops(`CMP H`);
+    }
+
+    /**
+     * A - L
+     */
+    public 0xbd = () => {
+        let ans = this.state.register.a ^ this.state.register.l;
+        this.state.cc.setSZP(ans);
+        this.state.cc.carry(ans);
+        this.state.register.pc += 1;
+        log.ops(`CMP L`);
+    }
+
+    /**
+     * A - (HL)
+     */
+    public 0xbe = () => {
+        let ans = this.state.register.a ^ this.state.memory.get(this.state.register.hl);
+        this.state.cc.setSZP(ans);
+        this.state.cc.carry(ans);
+        this.state.register.pc += 1;
+        log.ops(`CMP (HL)`);
+    }
+
+    /**
+     * A - A
+     */
+    public 0xbf = () => {
+        let ans = this.state.register.a ^ this.state.register.a;
+        this.state.cc.setSZP(ans);
+        this.state.cc.carry(ans);
+        this.state.register.pc += 1;
+        log.ops(`CMP A`);
     }
 
     /**
