@@ -1803,7 +1803,7 @@ class OpCodes {
     }
 
     /**
-     * A <- A + A
+     * A <- A + A + CY
      */
     public 0x8f = () => {
         let ans = this.state.register.a + this.state.register.a + this.state.cc.cy;
@@ -1911,7 +1911,7 @@ class OpCodes {
     }
 
     /**
-     * A <- A - B + CY
+     * A <- A - B - CY
      */
     public 0x98 = () => {
         let ans = this.state.register.a - this.state.register.b - this.state.cc.cy;
@@ -1923,7 +1923,7 @@ class OpCodes {
     }
 
     /**
-     * A <- A - C + CY
+     * A <- A - C - CY
      */
     public 0x99 = () => {
         let ans = this.state.register.a - this.state.register.c - this.state.cc.cy;
@@ -1935,7 +1935,7 @@ class OpCodes {
     }
 
     /**
-     * A <- A - D + CY
+     * A <- A - D - CY
      */
     public 0x9a = () => {
         let ans = this.state.register.a - this.state.register.d - this.state.cc.cy;
@@ -1947,7 +1947,7 @@ class OpCodes {
     }
 
     /**
-     * A <- A - E + CY
+     * A <- A - E - CY
      */
     public 0x9b = () => {
         let ans = this.state.register.a - this.state.register.e - this.state.cc.cy;
@@ -1959,7 +1959,7 @@ class OpCodes {
     }
 
     /**
-     * A <- A - H + CY
+     * A <- A - H - CY
      */
     public 0x9c = () => {
         let ans = this.state.register.a - this.state.register.h - this.state.cc.cy;
@@ -1971,7 +1971,7 @@ class OpCodes {
     }
 
     /**
-     * A <- A - L + CY
+     * A <- A - L - CY
      */
     public 0x9d = () => {
         let ans = this.state.register.a - this.state.register.l - this.state.cc.cy;
@@ -1983,7 +1983,7 @@ class OpCodes {
     }
 
     /**
-     * A <- A - (HL) + CY
+     * A <- A - (HL) - CY
      */
     public 0x9e = () => {
         let ans = this.state.register.a - this.state.memory.get(this.state.register.hl) - this.state.cc.cy;
@@ -1995,7 +1995,7 @@ class OpCodes {
     }
 
     /**
-     * A <- A - A
+     * A <- A - A - CY
      */
     public 0x9f = () => {
         let ans = this.state.register.a - this.state.register.a - this.state.cc.cy;
@@ -2004,6 +2004,198 @@ class OpCodes {
         this.state.register.a = ans;
         this.state.register.pc += 1;
         log.ops(`SBB A`);
+    }
+
+    /**
+     * A <- A & B
+     */
+    public 0xa0 = () => {
+        let ans = this.state.register.a & this.state.register.b;
+        this.state.cc.setSZP(ans);
+        this.state.cc.carry(ans);
+        this.state.register.a = ans;
+        this.state.register.pc += 1;
+        log.ops(`ANA B`);
+    }
+
+    /**
+     * A <- A & C
+     */
+    public 0xa1 = () => {
+        let ans = this.state.register.a & this.state.register.c;
+        this.state.cc.setSZP(ans);
+        this.state.cc.carry(ans);
+        this.state.register.a = ans;
+        this.state.register.pc += 1;
+        log.ops(`ANA C`);
+    }
+
+    /**
+     * A <- A & D
+     */
+    public 0xa2 = () => {
+        let ans = this.state.register.a & this.state.register.d;
+        this.state.cc.setSZP(ans);
+        this.state.cc.carry(ans);
+        this.state.register.a = ans;
+        this.state.register.pc += 1;
+        log.ops(`ANA D`);
+    }
+
+    /**
+     * A <- A & E
+     */
+    public 0xa3 = () => {
+        let ans = this.state.register.a & this.state.register.e;
+        this.state.cc.setSZP(ans);
+        this.state.cc.carry(ans);
+        this.state.register.a = ans;
+        this.state.register.pc += 1;
+        log.ops(`ANA E`);
+    }
+
+    /**
+     * A <- A & H
+     */
+    public 0xa4 = () => {
+        let ans = this.state.register.a & this.state.register.h;
+        this.state.cc.setSZP(ans);
+        this.state.cc.carry(ans);
+        this.state.register.a = ans;
+        this.state.register.pc += 1;
+        log.ops(`ANA H`);
+    }
+
+    /**
+     * A <- A & L
+     */
+    public 0xa5 = () => {
+        let ans = this.state.register.a & this.state.register.l;
+        this.state.cc.setSZP(ans);
+        this.state.cc.carry(ans);
+        this.state.register.a = ans;
+        this.state.register.pc += 1;
+        log.ops(`ANA L`);
+    }
+
+    /**
+     * A <- A & (HL)
+     */
+    public 0xa6 = () => {
+        let ans = this.state.register.a & this.state.memory.get(this.state.register.hl);
+        this.state.cc.setSZP(ans);
+        this.state.cc.carry(ans);
+        this.state.register.a = ans;
+        this.state.register.pc += 1;
+        log.ops(`ANA (HL)`);
+    }
+
+    /**
+     * A <- A & A
+     */
+    public 0xa7 = () => {
+        let ans = this.state.register.a & this.state.register.a;
+        this.state.cc.setSZP(ans);
+        this.state.cc.carry(ans);
+        this.state.register.a = ans;
+        this.state.register.pc += 1;
+        log.ops(`ANA A`);
+    }
+
+    /**
+     * A <- A ^ B
+     */
+    public 0xa8 = () => {
+        let ans = this.state.register.a ^ this.state.register.b;
+        this.state.cc.setSZP(ans);
+        this.state.cc.carry(ans);
+        this.state.register.a = ans;
+        this.state.register.pc += 1;
+        log.ops(`XRA B`);
+    }
+
+    /**
+     * A <- A ^ C
+     */
+    public 0xa9 = () => {
+        let ans = this.state.register.a ^ this.state.register.c;
+        this.state.cc.setSZP(ans);
+        this.state.cc.carry(ans);
+        this.state.register.a = ans;
+        this.state.register.pc += 1;
+        log.ops(`XRA C`);
+    }
+
+    /**
+     * A <- A ^ D
+     */
+    public 0xaa = () => {
+        let ans = this.state.register.a ^ this.state.register.d;
+        this.state.cc.setSZP(ans);
+        this.state.cc.carry(ans);
+        this.state.register.a = ans;
+        this.state.register.pc += 1;
+        log.ops(`XRA D`);
+    }
+
+    /**
+     * A <- A ^ E
+     */
+    public 0xab = () => {
+        let ans = this.state.register.a ^ this.state.register.e;
+        this.state.cc.setSZP(ans);
+        this.state.cc.carry(ans);
+        this.state.register.a = ans;
+        this.state.register.pc += 1;
+        log.ops(`XRA E`);
+    }
+
+    /**
+     * A <- A ^ H
+     */
+    public 0xac = () => {
+        let ans = this.state.register.a ^ this.state.register.h;
+        this.state.cc.setSZP(ans);
+        this.state.cc.carry(ans);
+        this.state.register.a = ans;
+        this.state.register.pc += 1;
+        log.ops(`XRA H`);
+    }
+
+    /**
+     * A <- A ^ L
+     */
+    public 0xad = () => {
+        let ans = this.state.register.a ^ this.state.register.l;
+        this.state.cc.setSZP(ans);
+        this.state.cc.carry(ans);
+        this.state.register.a = ans;
+        this.state.register.pc += 1;
+        log.ops(`XRA L`);
+    }
+
+    /**
+     * A <- A ^ (HL)
+     */
+    public 0xae = () => {
+        let ans = this.state.register.a ^ this.state.memory.get(this.state.register.hl);
+        this.state.cc.setSZP(ans);
+        this.state.cc.carry(ans);
+        this.state.register.a = ans;
+        this.state.register.pc += 1;
+        log.ops(`XRA (HL)`);
+    }
+
+    /**
+     * A <- A ^ A
+     */
+    public 0xaf = () => {
+        let ans = this.state.register.a ^ this.state.register.a;
+        this.state.cc.setSZP(ans);
+        this.state.cc.carry(ans);
+        this.state.register.a = ans;
+        this.state.register.pc += 1;
+        log.ops(`XRA A`);
     }
 
     /**
@@ -2461,6 +2653,9 @@ class Logger {
                 chunk += `\n`;
             }
             let cls = typeof invaders.ops[i] === "undefined" ? "bg-danger": "bg-success";
+            if ([0x10, 0x20, 0x30, 0x08, 0x18, 0x28, 0x38, 0xcb, 0xd9, 0xdd, 0xed, 0xfd].indexOf(i) > -1) {
+                cls = "bg-warning";
+            }
             chunk += `<kbd class="${cls}">${i.toString(16).padStart(2, "0")}</kbd>`;
         }
         ops_pre.innerHTML = chunk + `\n`;
