@@ -38,11 +38,15 @@ window.onload = loadRom;
  * @class ConditionCodes
  */
 class ConditionCodes {
-    private _z: number; // Result equal to zero
-    private _s: number; // bit 7 is 1
-    private _p: number; // Even parity
-    private _cy: number; // Carry/Borrow
-    private _ac: number; // Aux carry
+    private state: State8080;
+
+    /**
+     * Creates an instance of ConditionCodes.
+     * @param {State8080} state State of the 8080
+     */
+    constructor(state: State8080) {
+        this.state = state;
+    }
 
     /**
      * Set the S, Z and P flags
@@ -63,6 +67,15 @@ class ConditionCodes {
      */
     public carry(result: number): void {
         this.cy = Number(result > 0xff);
+    }
+
+    /**
+     * Set the CY flag
+     *
+     * @param {number} result Result of the previous operation
+     */
+    public carry16(result: number): void {
+        this.cy = Number(result > 0xffff);
     }
 
     /**
@@ -88,75 +101,95 @@ class ConditionCodes {
      * Get z condition
      */
     public get z(): number {
-        return this._z;
+        return Number((this.state.register.f & 0b01000000) == 0b01000000);
     }
 
     /**
      * Set z condition
      */
     public set z(v : number) {
+        if (v) {
+            this.state.register.f |= 0b01000000;
+        } else {
+            this.state.register.f &= 0b10111111;
+        }
         log.reg("z", v);
-        this._z = v ? 1 : 0;
     }
 
     /**
      * Get s condition
      */
     public get s(): number {
-        return this._s;
+        return Number((this.state.register.f & 0b10000000) == 0b10000000);
     }
 
     /**
      * Set s condition
      */
     public set s(v : number) {
+        if (v) {
+            this.state.register.f |= 0b10000000;
+        } else {
+            this.state.register.f &= 0b01111111;
+        }
         log.reg("s", v);
-        this._s = v ? 1 : 0;
     }
 
     /**
      * Get p condition
      */
     public get p(): number {
-        return this._p;
+        return Number((this.state.register.f & 0b00000100) == 0b00000100);
     }
 
     /**
      * Set p condition
      */
     public set p(v : number) {
+        if (v) {
+            this.state.register.f |= 0b00000100;
+        } else {
+            this.state.register.f &= 0b11111011;
+        }
         log.reg("p", v);
-        this._p = v ? 1 : 0;
     }
 
     /**
      * Get cy condition
      */
     public get cy(): number {
-        return this._cy;
+        return Number((this.state.register.f & 0b00000001) == 0b00000001);
     }
 
     /**
      * Set cy condition
      */
     public set cy(v : number) {
+        if (v) {
+            this.state.register.f |= 0b00000001;
+        } else {
+            this.state.register.f &= 0b11111110;
+        }
         log.reg("cy", v);
-        this._cy = v ? 1 : 0;
     }
 
     /**
      * Get ac condition
      */
     public get ac(): number {
-        return this._ac;
+        return Number((this.state.register.f & 0b00001000) == 0b00001000);
     }
 
     /**
      * Set ac condition
      */
     public set ac(v : number) {
+        if (v) {
+            this.state.register.f |= 0b00001000;
+        } else {
+            this.state.register.f &= 0b11110111;
+        }
         log.reg("ac", v);
-        this._ac = v ? 1 : 0;
     }
 }
 
@@ -166,15 +199,16 @@ class ConditionCodes {
  * @class Registers
  */
 class Registers {
-    private _a: number;
-    private _b: number;
-    private _c: number;
-    private _d: number;
-    private _e: number;
-    private _h: number;
-    private _l: number;
-    private _pc: number; // Program Counter
-    private _sp: number; // Stack Pointer
+    private _a!: number;
+    private _f: number = 0b00000010;
+    private _b!: number;
+    private _c!: number;
+    private _d!: number;
+    private _e!: number;
+    private _h!: number;
+    private _l!: number;
+    private _pc!: number; // Program Counter
+    private _sp!: number; // Stack Pointer
 
     /**
      * Get program counter
@@ -187,8 +221,8 @@ class Registers {
      * Set program counter
      */
     public set pc(v : number) {
-        log.reg("pc", v);
         this._pc = v & 0xffff;
+        log.reg("pc", this._pc);
     }
 
     /**
@@ -202,8 +236,8 @@ class Registers {
      * Set program counter
      */
     public set sp(v : number) {
-        log.reg("sp", v);
         this._sp = v & 0xffff;
+        log.reg("sp", this._sp);
     }
 
     /**
@@ -217,8 +251,23 @@ class Registers {
      * Set a register
      */
     public set a(v : number) {
-        log.reg("a", v);
         this._a = v & 0xff;
+        log.reg("a", this._a);
+    }
+
+    /**
+     * Get f register
+     */
+    public get f(): number {
+        return this._f;
+    }
+
+    /**
+     * Set f register
+     */
+    public set f(v : number) {
+        this._f = v & 0xff;
+        log.reg("f", this._f);
     }
 
     /**
@@ -232,8 +281,8 @@ class Registers {
      * Set b register
      */
     public set b(v : number) {
-        log.reg("b", v);
         this._b = v & 0xff;
+        log.reg("b", this._b);
     }
 
     /**
@@ -247,8 +296,8 @@ class Registers {
      * Set c register
      */
     public set c(v : number) {
-        log.reg("c", v);
         this._c = v & 0xff;
+        log.reg("c", this._c);
     }
 
     /**
@@ -262,8 +311,8 @@ class Registers {
      * Set d register
      */
     public set d(v : number) {
-        log.reg("d", v);
         this._d = v & 0xff;
+        log.reg("d", this._d);
     }
 
     /**
@@ -277,8 +326,8 @@ class Registers {
      * Set e register
      */
     public set e(v : number) {
-        log.reg("e", v);
         this._e = v & 0xff;
+        log.reg("e", this._e);
     }
 
     /**
@@ -292,8 +341,8 @@ class Registers {
      * Set h register
      */
     public set h(v : number) {
-        log.reg("h", v);
         this._h = v & 0xff;
+        log.reg("h", this._h);
     }
 
     /**
@@ -307,8 +356,27 @@ class Registers {
      * Set l register
      */
     public set l(v : number) {
-        log.reg("l", v);
         this._l = v & 0xff;
+        log.reg("l", this._l);
+    }
+
+    /**
+     * Read the combined A & F registers
+     *
+     * @return {number} BC
+     */
+    public get psw(): number {
+        return (this.a << 8) + this.f;
+    }
+
+    /**
+     * Set the combined A & F registers
+     *
+     * @param {number} af New value
+     */
+    public set psw(af: number) {
+        this.a = (af >> 8) & 0xff;
+        this.f = af & 0xff;
     }
 
     /**
@@ -323,7 +391,7 @@ class Registers {
     /**
      * Set the combined B & C registers
      *
-     * @param {number} New value
+     * @param {number} bc New value
      */
     public set bc(bc: number) {
         this.b = (bc >> 8) & 0xff;
@@ -342,7 +410,7 @@ class Registers {
     /**
      * Set the combined D & E registers
      *
-     * @param {number} New value
+     * @param {number} de New value
      */
     public set de(de: number) {
         this.d = (de >> 8) & 0xff;
@@ -361,7 +429,7 @@ class Registers {
     /**
      * Set the combined H & L registers
      *
-     * @param {number} New value
+     * @param {number} hl New value
      */
     public set hl(hl: number) {
         this.h = (hl >> 8) & 0xff;
@@ -458,7 +526,7 @@ class State8080 {
     // public pc: DataView = new DataView(new ArrayBuffer(2)); // Program Counter
     public int: boolean = true; // Interrupts enabled
     public memory: Memory;
-    public cc: ConditionCodes = new ConditionCodes();
+    public cc: ConditionCodes = new ConditionCodes(this);
     public ops: OpCodes = new OpCodes(this);
     public cycle = 0; // Number of cycles executed
 
@@ -480,6 +548,7 @@ class State8080 {
     public init(): void {
         this.register.pc = 0;
         this.ready = true;
+        console.log("Ready");
     }
 
     /**
@@ -1486,8 +1555,8 @@ class OpCodes {
      * Write to the I/O port
      */
     public 0xd3 = () => {
-        let byte = this.state.memory.get(this.state.register.pc + 1);
-        log.ops(`OUT ${byte.toString(16)}`);
+        let port = this.state.memory.get(this.state.register.pc + 1);
+        log.ops(`OUT ${port.toString(16)} (${this.state.register.a})`);
         this.state.register.pc += 1;
         throw "Not finished implementing";
     }
@@ -1532,6 +1601,27 @@ class OpCodes {
         [this.state.register.e, this.state.register.l] = [this.state.register.l, this.state.register.e];
         this.state.register.pc += 1;
         log.ops(`XCHG`);
+    }
+
+    /**
+     * flags <- (sp); A <- (sp+1); sp <- sp+2
+     */
+    public 0xf1 = () => {
+        this.state.register.psw = this.state.memory.get16(this.state.register.sp);
+        this.state.register.sp += 2;
+        this.state.register.pc += 1;
+        log.ops(`POP H`);
+    }
+
+    /**
+     * (sp-2)<-flags; (sp-1)<-A; sp <- sp - 2
+     */
+    public 0xf5 = () => {
+        let sp = this.state.register.sp;
+        this.state.memory.set16(sp - 2, this.state.register.psw);
+        this.state.register.sp -= 2;
+        this.state.register.pc += 1;
+        log.ops(`PUSH PSW`);
     }
 
     /**
@@ -1666,7 +1756,7 @@ class Logger {
         if (!reg_inp) {
             return;
         }
-        reg_inp.value = val.toString(16).padStart(2, "0");
+        reg_inp.value = val.toString(16).padStart(reg_inp.maxLength, "0");
     }
 }
 
