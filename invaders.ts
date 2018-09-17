@@ -896,7 +896,14 @@ class State8080 {
     }
 
     private exec(cur_step: number = 1, steps: number = 1): void {
-        for (let j = 0; j < 100; j++) {
+        for (let j = 0; j < 1; j++) {
+            if (this.int && this.active_int > 0x00) {
+                this.int = false;
+                log.step();
+                this.register.pc -= 2;
+                this.ops[this.active_int]();
+                this.active_int = 0x00;
+            }
             log.step();
             let opcode = this.memory.get(this.register.pc);
             if (this.register.pc == 0x1a65) {
@@ -928,6 +935,7 @@ class State8080 {
             }
             if (this.int && this.active_int > 0x00) {
                 this.int = false;
+                this.register.pc -= 2;
                 this.ops[this.active_int]();
                 this.active_int = 0x00;
             }
@@ -2986,7 +2994,7 @@ class OpCodes {
         this.state.cc.setSZP(ans);
         this.state.cc.carry(ans);
         this.state.register.a = ans;
-        this.state.register.pc += 1;
+        this.state.register.pc += 2;
         log.ops(`ADI ${byte.toString(16)}`);
     }
 
@@ -3094,7 +3102,7 @@ class OpCodes {
         this.state.cc.setSZP(ans);
         this.state.cc.carry(ans);
         this.state.register.a = ans;
-        this.state.register.pc += 1;
+        this.state.register.pc += 2;
         log.ops(`ACI ${data}`);
     }
 
@@ -3185,7 +3193,7 @@ class OpCodes {
         this.state.cc.setSZP(ans);
         this.state.cc.carry(ans);
         this.state.register.a = ans;
-        this.state.register.pc += 1;
+        this.state.register.pc += 2;
         log.ops(`SUI ${data}`);
     }
 
@@ -3225,12 +3233,12 @@ class OpCodes {
      */
     public 0xdb = () => {
         let port = this.state.memory.get(this.state.register.pc + 1);
-        log.ops(`IN ${port.toString(16)} (${this.state.register.a})`);
         try {
             this.state.register.a = this.state.io[port];
         } catch(e) {
             throw "Unimplemented io port access";
         }
+        log.ops(`IN ${port.toString(16)} (${this.state.register.a})`);
         this.state.register.pc += 2;
     }
 
@@ -3339,7 +3347,7 @@ class OpCodes {
         this.state.cc.setSZP(ans);
         this.state.cc.carry(ans);
         this.state.register.a = ans;
-        this.state.register.pc += 1;
+        this.state.register.pc += 2;
         log.ops(`ANI ${data}`);
     }
 
@@ -3405,7 +3413,7 @@ class OpCodes {
         this.state.cc.setSZP(ans);
         this.state.cc.carry(ans);
         this.state.register.a = ans;
-        this.state.register.pc += 1;
+        this.state.register.pc += 2;
         log.ops(`XRI ${data}`);
     }
 
@@ -3491,7 +3499,7 @@ class OpCodes {
         this.state.cc.setSZP(ans);
         this.state.cc.carry(ans);
         this.state.register.a = ans;
-        this.state.register.pc += 1;
+        this.state.register.pc += 2;
         log.ops(`SBI ${data}`);
     }
 
@@ -3555,7 +3563,7 @@ class OpCodes {
         let ans = this.state.register.a - byte;
         this.state.cc.setSZP(ans);
         this.state.cc.carry(ans);
-        this.state.register.pc += 1;
+        this.state.register.pc += 2;
         log.ops(`CPI ${byte.toString(16)}`);
     }
 
