@@ -669,9 +669,117 @@ class SpaceInvadersIO extends IO8080 {
         "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V",
         "W", "X", "Y", "Z", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "<", ">", " "
     ];
+    private port: number[];
+    private shift: number = 0; // Internal shift register for 16 bit shifting
 
     /**
-     * Write port 6 for watchdog
+     * Write the initial state of the IO ports
+     */
+    constructor() {
+        super();
+        this.port = [];
+        this.port[0] = 0b00001110;
+        this.port[1] = 0b00001000;
+        this.port[2] = 0b00000000;
+        this.port[3] = 0b00000000;
+    }
+
+    /**
+     * Read port 0, not used
+     * bit 0 DIP4 (Seems to be self-test-request read at power up)
+     * bit 1 Always 1
+     * bit 2 Always 1
+     * bit 3 Always 1
+     * bit 4 Fire
+     * bit 5 Left
+     * bit 6 Right
+     * bit 7 ? tied to demux port 7 ?
+     */
+    public get 0x00() {
+        return this.port[0];
+    }
+
+    /**
+     * Read port 1, Player one controls
+     * bit 0 = CREDIT (1 if deposit)
+     * bit 1 = 2P start (1 if pressed)
+     * bit 2 = 1P start (1 if pressed)
+     * bit 3 = Always 1
+     * bit 4 = 1P shot (1 if pressed)
+     * bit 5 = 1P left (1 if pressed)
+     * bit 6 = 1P right (1 if pressed)
+     * bit 7 = Not connected
+     */
+    public get 0x01() {
+        return this.port[1];
+    }
+
+    /**
+     * Read port 2, Player two controls
+     * bit 0 = DIP3 00 = 3 ships  10 = 5 ships
+     * bit 1 = DIP5 01 = 4 ships  11 = 6 ships
+     * bit 2 = Tilt
+     * bit 3 = DIP6 0 = extra ship at 1500, 1 = extra ship at 1000
+     * bit 4 = P2 shot (1 if pressed)
+     * bit 5 = P2 left (1 if pressed)
+     * bit 6 = P2 right (1 if pressed)
+     * bit 7 = DIP7 Coin info displayed in demo screen 0=ON
+     */
+    public get 0x02() {
+        return this.port[2];
+    }
+
+    /**
+     * Shift amount
+     */
+    public set 0x02(v: number) {
+        this.shift = (((this.shift << v) & 0xffff) >> 8);
+    }
+
+    /**
+     * Shift results
+     */
+    public get 0x03() {
+        return this.shift;
+    }
+
+    /**
+     * Sound clips
+     * bit 0= UFO (repeats)        SX0 0.raw
+     * bit 1= Shot                 SX1 1.raw
+     * bit 2= Flash (player die)   SX2 2.raw
+     * bit 3= Invader die          SX3 3.raw
+     * bit 4= Extended play        SX4
+     * bit 5= AMP enable           SX5
+     * bit 6= NC (not wired)
+     * bit 7= NC (not wired)
+     */
+    public set 0x03(v: number) {}
+
+    /**
+     * Shift data
+     */
+    public set 0x04(v: number) {
+        this.shift = this.shift >> 8;
+        this.shift += (v << 8);
+        this.shift = this.shift & 0xffff;
+    }
+
+    /**
+     * Sound clips
+     * bit 0= Fleet movement 1     SX6 4.raw
+     * bit 1= Fleet movement 2     SX7 5.raw
+     * bit 2= Fleet movement 3     SX8 6.raw
+     * bit 3= Fleet movement 4     SX9 7.raw
+     * bit 4= UFO Hit              SX10 8.raw
+     * bit 5= NC (Cocktail mode control ... to flip screen)
+     * bit 6= NC (not wired)
+     * bit 7= NC (not wired)
+     */
+    public set 0x05(v: number) {}
+
+    /**
+     * Write to watchdog
      */
     public set 0x06(v: number) {
         if (typeof this.alpha[v] === "undefined") {
@@ -767,7 +875,7 @@ class State8080 {
         }
         this.ops[opcode]();
         this.cycle += this.ops.cycle[opcode];
-        if ([0x1956, 0x191a].indexOf(this.register.pc) > -1) {
+        if ([0x0ade, 0x1956, 0x191a].indexOf(this.register.pc) > -1) {
             throw "Breakpoint"
         }
         if (this.ready && cur_step < steps) {
@@ -815,7 +923,7 @@ class SpaceInvaders extends State8080 {
         let width = 256;
         let height = 224;
         let raw = this.screen.createImageData(width, height);
-        for (let i = 0; i < raw.data.byteLength; i+=32) {
+        for (let i = 0; i < raw.data.byteLength; i += 32) {
             let byte = this.memory.get(0x2400 + (i / 32));
             for (let b = 0; b < 8; b++) {
                 let v = ((byte & Math.pow(2, b)) == Math.pow(2, b)) ? 0xff : 0;
@@ -824,6 +932,8 @@ class SpaceInvaders extends State8080 {
                 raw.data[i + b * 4 + 2] = v;
                 raw.data[i + b * 4 + 3] = v;
             }
+            // i == 0x60 => rst  8
+            // i == 0xe0 => rst 10
         }
         this.screen.putImageData(raw, 0, 0);
         // this.screen.enable(this.screen.SCISSOR_TEST);
