@@ -1,23 +1,159 @@
+//
+// $2000 is the start of the program's "work ram"
+// $2400 is the start of the video memory
+// 8080 is little endian
+// lo.hi => 21.43 == 0x4321
+//
+
 /**
- * $2000 is the start of the program's "work ram"
- * $2400 is the start of the video memory
- * 8080 is little endian
- * lo.hi => 21.43 == 0x4321
+ * Log messages to the screen when enabled
  */
+class Logger {
+    /**
+     * Log a msg to the ops box
+     *
+     * @param {string}  msg   Text to log
+     * @param {boolean} error Flag it as an error
+     */
+    public ops(msg: string, error: boolean = false): void {
+        if (!logging_enabled) {
+            return;
+        }
+        let ops_pre = document.getElementById("ops");
+        if (ops_pre) {
+            let op = document.createElement("span");
+            if (error) {
+                op.classList.add("text-danger");
+            }
+            op.innerText += ` ${msg}\n`;
+            ops_pre.appendChild(op);
+            ops_pre.scrollTop = ops_pre.scrollHeight;
+        }
+    }
+
+    /**
+     * Log the pc to the ops box
+     */
+    public step(): void {
+        if (!logging_enabled) {
+            return;
+        }
+        let ops_pre = document.getElementById("ops");
+        if (ops_pre) {
+            let kbd = document.createElement("kbd");
+            kbd.innerText = invaders.register.pc.toString(16).padStart(4, "0");
+            ops_pre.appendChild(kbd);
+        }
+    }
+
+    /**
+     * Draw memory into memory box
+     *
+     * @param {DataView} mem System memory
+     */
+    public drawMemory(mem: DataView): void {
+        if (!logging_enabled) {
+            return;
+        }
+        let mem_pre = document.getElementById("memory");
+        if (!mem_pre) {
+            return;
+        }
+        let chunk = "";
+        for (let i = 0; i < mem.byteLength; i++) {
+            if (i % 16 === 0) {
+                let sect = i.toString(16).padStart(4, "0");
+                chunk += `\n<kbd>${sect}</kbd> `;
+            }
+            let addr = mem.getUint8(i).toString(16).padStart(2, "0");
+            chunk += `<span id="m${i}">${addr}</span> `;
+        }
+        mem_pre.innerHTML = chunk;
+    }
+
+    /**
+     * Highlight memory that's been written to
+     *
+     * @param {number} addr
+     */
+    public updateMemory(addr: number, val: number): void {
+        if (!logging_enabled) {
+            return;
+        }
+        if (val > 0xff) {
+            let lo = val & 0xff;
+            let cell = document.getElementById(`m${addr}`);
+            if (cell) {
+                cell.classList.add("text-danger");
+                cell.innerText = lo.toString(16).padStart(2, "0");
+                cell.scrollIntoView();
+            }
+            val = (val >> 8) & 0xff;
+            addr++;
+        }
+        let cell = document.getElementById(`m${addr}`);
+        if (cell) {
+            cell.classList.add("text-danger");
+            cell.innerText = val.toString(16).padStart(2, "0");
+            cell.scrollIntoView();
+        }
+    }
+
+    /**
+     * Update register
+     *
+     * @param {string} reg Register to update
+     * @param {number} val Value to set
+     */
+    public reg(reg: string, val: number): void {
+        if (!logging_enabled) {
+            return;
+        }
+        let reg_inp = <HTMLInputElement>document.getElementById(reg);
+        if (!reg_inp) {
+            return;
+        }
+        reg_inp.value = val.toString(16).padStart(reg_inp.maxLength, "0");
+    }
+
+    /**
+     * Print out if an op code is implemented or not
+     */
+    public coverage() {
+        let ops_pre = document.getElementById("ops");
+        if (!ops_pre) {
+            return;
+        }
+
+        let chunk = "";
+        for (let i = 0; i <= 0xff; i++) {
+            if (i % 16 === 0) {
+                chunk += `\n`;
+            }
+            let cls = typeof invaders.ops[i] === "undefined" ? "bg-danger": "bg-success";
+            if ([0x10, 0x20, 0x30, 0x08, 0x18, 0x28, 0x38, 0xcb, 0xd9, 0xdd, 0xed, 0xfd].indexOf(i) > -1) {
+                cls = "bg-warning";
+            }
+            chunk += `<kbd class="${cls}">${i.toString(16).padStart(2, "0")}</kbd>`;
+        }
+        ops_pre.innerHTML = chunk + `\n`;
+    }
+}
+
 
 let invaders: State8080;
 let logging_enabled: boolean = true;
-let log: Logger;
+let log: Logger = new Logger();
 
 /**
  * Load rom into memory
  */
 function loadRom(): void {
-    log = new Logger();
-    invaders = new State8080("invaders");
-    invaders.io = new SpaceInvadersIO();
+    invaders = new SpaceInvaders();
     // invaders = new State8080("8080EXM.COM");
     // invaders = new State8080("cpudiag.bin");
+
+    // If we have debug buttons up, attach handlers
     let run_btn = document.getElementById("run");
     if (run_btn) {
         run_btn.addEventListener("click", (e) => { e.preventDefault(); invaders.run(); });
@@ -41,8 +177,6 @@ window.onload = loadRom;
 
 /**
  * 8080 condition codes
- *
- * @class ConditionCodes
  */
 class ConditionCodes {
     private state: State8080;
@@ -202,8 +336,6 @@ class ConditionCodes {
 
 /**
  * 8080 registers
- *
- * @class Registers
  */
 class Registers {
     private _a!: number;
@@ -447,8 +579,6 @@ class Registers {
 
 /**
  * Control access to the 8080 memory
- *
- * @class Memory
  */
 class Memory {
     private memory: DataView;
@@ -527,7 +657,13 @@ class Memory {
     }
 }
 
+/**
+ * IO port of 8080
+ */
 class IO8080 {}
+/**
+ * IO ports for Space Invaders machine
+ */
 class SpaceInvadersIO extends IO8080 {
     private alpha = [
         "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V",
@@ -546,6 +682,9 @@ class SpaceInvadersIO extends IO8080 {
     }
 }
 
+/**
+ * 8080 CPU
+ */
 class State8080 {
     public ready: boolean = false; // Finished loading, ready to execute
     public register = new Registers(); // Register container
@@ -573,7 +712,7 @@ class State8080 {
      */
     public init(): void {
         this.register.pc = 0;
-        this.register.sp = 0x4000 - 1;
+        this.register.sp = 0x2400;
         this.ready = true;
         console.log("Ready");
     }
@@ -628,6 +767,9 @@ class State8080 {
         }
         this.ops[opcode]();
         this.cycle += this.ops.cycle[opcode];
+        if ([0x1956, 0x191a].indexOf(this.register.pc) > -1) {
+            throw "Breakpoint"
+        }
         if (this.ready && cur_step < steps) {
             // new Promise(resolve => setTimeout(resolve)).then(() => { cur_step++; this.exec(cur_step, steps); });
             setTimeout(() => { cur_step++; this.exec(cur_step, steps); });
@@ -636,7 +778,64 @@ class State8080 {
 }
 
 /**
- * Execute requested opcode
+ * Space Invaders machine
+ */
+class SpaceInvaders extends State8080 {
+    // public screen!: WebGLRenderingContext;
+    public screen!: CanvasRenderingContext2D;
+
+    /**
+     * Load the invaders rom dump into the 8080
+     */
+    constructor() {
+        super("invaders");
+    }
+
+    public init() {
+        super.init();
+        this.io = new SpaceInvadersIO();
+        this.register.sp = 0x00;
+        this.setupScreen();
+        console.log("Ready machine");
+    }
+
+    public setupScreen() {
+        let screen = <HTMLCanvasElement>document.getElementById("screen");
+        if (!screen) {
+            return;
+        }
+        this.screen  = screen.getContext("2d", { alpha: false })!;
+        // this.screen = screen.getContext("webgl", { alpha: false })! || screen.getContext("experimental-webgl", { alpha: false })!;
+        // this.screen.viewport(0, 0, this.screen.drawingBufferWidth, this.screen.drawingBufferHeight);
+        // this.screen.clearColor(0, 0, 0, 1.0);
+        // this.screen.clear(this.screen.COLOR_BUFFER_BIT);
+    }
+
+    public drawScreen() {
+        let width = 256;
+        let height = 224;
+        let raw = this.screen.createImageData(width, height);
+        for (let i = 0; i < raw.data.byteLength; i+=32) {
+            let byte = this.memory.get(0x2400 + (i / 32));
+            for (let b = 0; b < 8; b++) {
+                let v = ((byte & Math.pow(2, b)) == Math.pow(2, b)) ? 0xff : 0;
+                raw.data[i + b * 4] = v;
+                raw.data[i + b * 4 + 1] = v;
+                raw.data[i + b * 4 + 2] = v;
+                raw.data[i + b * 4 + 3] = v;
+            }
+        }
+        this.screen.putImageData(raw, 0, 0);
+        // this.screen.enable(this.screen.SCISSOR_TEST);
+        // this.screen.scissor(4, 2, 1, 1);
+        // this.screen.clearColor(0xff, 0xff, 0xff, 1.0);
+        // this.screen.clear(this.screen.COLOR_BUFFER_BIT);
+    }
+}
+
+
+/**
+ * Execute requested 8080 opcode
  */
 class OpCodes {
     private state: State8080; // Which 8080 are we operating on
@@ -666,6 +865,13 @@ class OpCodes {
         log.ops(`NOP`);
         this.state.register.pc += 1;
     }
+    public 0x08 = this[0x00];
+    public 0x10 = this[0x00];
+    public 0x18 = this[0x00];
+    public 0x20 = this[0x00];
+    public 0x28 = this[0x00];
+    public 0x30 = this[0x00];
+    public 0x38 = this[0x00];
 
     /**
      * B <- byte 3,C <- byte 2
@@ -1035,7 +1241,7 @@ class OpCodes {
      * A <- !A
      */
     public 0x2f = () => {
-
+        this.state.register.a = ~this.state.register.a;
         log.ops(`CMA`);
         this.state.register.pc += 1;
     }
@@ -1159,6 +1365,15 @@ class OpCodes {
         this.state.register.a = byte;
         log.ops(`MVI A ${byte.toString(16)}`);
         this.state.register.pc += 2;
+    }
+
+    /**
+     * CY <- !CY
+     */
+    public 0x3f = () => {
+        this.state.cc.cy = ~this.state.cc.cy & 0x01;
+        log.ops(`CMC`);
+        this.state.register.pc += 1;
     }
 
     /**
@@ -2589,6 +2804,25 @@ class OpCodes {
     }
 
     /**
+     * Call address contained in bytes 2 and 3
+     *
+     * @param {string} type
+     */
+    private rst(addr: number): void {
+        this.state.register.sp -= 2;
+        this.state.memory.set16(this.state.register.sp, this.state.register.pc + 1);
+        this.state.register.pc = addr;
+        log.ops(`RST ${addr.toString(16).padStart(2, "0")}`);
+    }
+
+    /**
+     * CALL $0
+     */
+    public 0xc7 = () => {
+        this.rst(0x00);
+    }
+
+    /**
      * if Z, RET
      */
     public 0xc8 = () => {
@@ -2653,6 +2887,26 @@ class OpCodes {
     }
 
     /**
+     * A <- A + data + CY
+     */
+    public 0xce = () => {
+        let data = this.state.memory.get(this.state.register.pc + 1);
+        let ans = this.state.register.a + data + this.state.cc.cy;
+        this.state.cc.setSZP(ans);
+        this.state.cc.carry(ans);
+        this.state.register.a = ans;
+        this.state.register.pc += 1;
+        log.ops(`ACI ${data}`);
+    }
+
+    /**
+     * CALL $8
+     */
+    public 0xcf = () => {
+        this.rst(0x08);
+    }
+
+    /**
      * if NCY, RET
      */
     public 0xd0 = () => {
@@ -2700,6 +2954,26 @@ class OpCodes {
     }
 
     /**
+     * A <- A - data
+     */
+    public 0xd6 = () => {
+        let data = this.state.memory.get(this.state.register.pc + 1);
+        let ans = this.state.register.a - data;
+        this.state.cc.setSZP(ans);
+        this.state.cc.carry(ans);
+        this.state.register.a = ans;
+        this.state.register.pc += 1;
+        log.ops(`SUI ${data}`);
+    }
+
+    /**
+     * CALL $10
+     */
+    public 0xd7 = () => {
+        this.rst(0x10);
+    }
+
+    /**
      * if CY, RET
      */
     public 0xd8 = () => {
@@ -2709,6 +2983,26 @@ class OpCodes {
             return;
         }
         this.return("RC");
+    }
+
+    /**
+     * A <- A - data - CY
+     */
+    public 0xde = () => {
+        let data = this.state.memory.get(this.state.register.pc + 1);
+        let ans = this.state.register.a - data - this.state.cc.cy;
+        this.state.cc.setSZP(ans);
+        this.state.cc.carry(ans);
+        this.state.register.a = ans;
+        this.state.register.pc += 2;
+        log.ops(`SBI ${data}`);
+    }
+
+    /**
+     * CALL $18
+     */
+    public 0xdf = () => {
+        this.rst(0x18);
     }
 
     /**
@@ -2753,8 +3047,15 @@ class OpCodes {
         this.state.cc.setSZP(ans);
         this.state.cc.carry(ans);
         this.state.register.a = ans;
-        this.state.register.pc += 2;
+        this.state.register.pc += 1;
         log.ops(`ANI ${data}`);
+    }
+
+    /**
+     * CALL $20
+     */
+    public 0xe7 = () => {
+        this.rst(0x20);
     }
 
     /**
@@ -2777,6 +3078,26 @@ class OpCodes {
         [this.state.register.e, this.state.register.l] = [this.state.register.l, this.state.register.e];
         this.state.register.pc += 1;
         log.ops(`XCHG`);
+    }
+
+    /**
+     * A <- A ^ data
+     */
+    public 0xee = () => {
+        let data = this.state.memory.get(this.state.register.pc + 1);
+        let ans = this.state.register.a ^ data;
+        this.state.cc.setSZP(ans);
+        this.state.cc.carry(ans);
+        this.state.register.a = ans;
+        this.state.register.pc += 1;
+        log.ops(`XRI ${data}`);
+    }
+
+    /**
+     * CALL $28
+     */
+    public 0xef = () => {
+        this.rst(0x28);
     }
 
     /**
@@ -2822,6 +3143,26 @@ class OpCodes {
     }
 
     /**
+     * A <- A | data
+     */
+    public 0xf6 = () => {
+        let data = this.state.memory.get(this.state.register.pc + 1);
+        let ans = this.state.register.a | data;
+        this.state.cc.setSZP(ans);
+        this.state.cc.carry(ans);
+        this.state.register.a = ans;
+        this.state.register.pc += 1;
+        log.ops(`SBI ${data}`);
+    }
+
+    /**
+     * CALL $30
+     */
+    public 0xf7 = () => {
+        this.rst(0x30);
+    }
+
+    /**
      * if negative, RET
      */
     public 0xf8 = () => {
@@ -2855,6 +3196,13 @@ class OpCodes {
     }
 
     /**
+     * CALL $38
+     */
+    public 0xff = () => {
+        this.rst(0x38);
+    }
+
+    /**
      * Creates an instance of OpCodes.
      * @param {State8080} state 8080 being used
      */
@@ -2864,148 +3212,12 @@ class OpCodes {
 }
 
 
-/**
- * Log messages to the screen when enabled
- *
- * @class Logger
- */
-class Logger {
-    /**
-     * Log a msg to the ops box
-     *
-     * @param {string}  msg   Text to log
-     * @param {boolean} error Flag it as an error
-     */
-    public ops(msg: string, error: boolean = false): void {
-        if (!logging_enabled) {
-            return;
-        }
-        let ops_pre = document.getElementById("ops");
-        if (ops_pre) {
-            let op = document.createElement("span");
-            if (error) {
-                op.classList.add("text-danger");
-            }
-            op.innerText += ` ${msg}\n`;
-            ops_pre.appendChild(op);
-            ops_pre.scrollTop = ops_pre.scrollHeight;
-        }
-    }
-
-    /**
-     * Log the pc to the ops box
-     */
-    public step(): void {
-        if (!logging_enabled) {
-            return;
-        }
-        let ops_pre = document.getElementById("ops");
-        if (ops_pre) {
-            let kbd = document.createElement("kbd");
-            kbd.innerText = invaders.register.pc.toString(16).padStart(4, "0");
-            ops_pre.appendChild(kbd);
-        }
-    }
-
-    /**
-     * Draw memory into memory box
-     *
-     * @param {DataView} mem System memory
-     */
-    public drawMemory(mem: DataView): void {
-        if (!logging_enabled) {
-            return;
-        }
-        let mem_pre = document.getElementById("memory");
-        if (!mem_pre) {
-            return;
-        }
-        let chunk = "";
-        for (let i = 0; i < mem.byteLength; i++) {
-            if (i % 16 === 0) {
-                let sect = i.toString(16).padStart(4, "0");
-                chunk += `\n<kbd>${sect}</kbd> `;
-            }
-            let addr = mem.getUint8(i).toString(16).padStart(2, "0");
-            chunk += `<span id="m${i}">${addr}</span> `;
-        }
-        mem_pre.innerHTML = chunk;
-    }
-
-    /**
-     * Highlight memory that's been written to
-     *
-     * @param {number} addr
-     */
-    public updateMemory(addr: number, val: number): void {
-        if (!logging_enabled) {
-            return;
-        }
-        if (val > 0xff) {
-            let lo = val & 0xff;
-            let cell = document.getElementById(`m${addr}`);
-            if (cell) {
-                cell.classList.add("text-danger");
-                cell.innerText = lo.toString(16).padStart(2, "0");
-                cell.scrollIntoView();
-            }
-            val = (val >> 8) & 0xff;
-            addr++;
-        }
-        let cell = document.getElementById(`m${addr}`);
-        if (cell) {
-            cell.classList.add("text-danger");
-            cell.innerText = val.toString(16).padStart(2, "0");
-            cell.scrollIntoView();
-        }
-    }
-
-    /**
-     * Update register
-     *
-     * @param {string} reg Register to update
-     * @param {number} val Value to set
-     */
-    public reg(reg: string, val: number): void {
-        if (!logging_enabled) {
-            return;
-        }
-        let reg_inp = <HTMLInputElement>document.getElementById(reg);
-        if (!reg_inp) {
-            return;
-        }
-        reg_inp.value = val.toString(16).padStart(reg_inp.maxLength, "0");
-    }
-
-    /**
-     * Print out if an op code is implemented or not
-     */
-    public coverage() {
-        let ops_pre = document.getElementById("ops");
-        if (!ops_pre) {
-            return;
-        }
-
-        let chunk = "";
-        for (let i = 0; i <= 0xff; i++) {
-            if (i % 16 === 0) {
-                chunk += `\n`;
-            }
-            let cls = typeof invaders.ops[i] === "undefined" ? "bg-danger": "bg-success";
-            if ([0x10, 0x20, 0x30, 0x08, 0x18, 0x28, 0x38, 0xcb, 0xd9, 0xdd, 0xed, 0xfd].indexOf(i) > -1) {
-                cls = "bg-warning";
-            }
-            chunk += `<kbd class="${cls}">${i.toString(16).padStart(2, "0")}</kbd>`;
-        }
-        ops_pre.innerHTML = chunk + `\n`;
-    }
-}
 
 /**
  * Polyfill for ArrayBuffer transfer ability
  */
 if (typeof ArrayBuffer.transfer === "undefined") {
-    ArrayBuffer.transfer = function(source, length) {
+    ArrayBuffer.transfer = function(source: ArrayBuffer, length: number) {
         if (!(source instanceof ArrayBuffer))
             throw new TypeError('Source must be an instance of ArrayBuffer');
         if (length <= source.byteLength)
