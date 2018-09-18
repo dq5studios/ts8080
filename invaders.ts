@@ -174,6 +174,44 @@ function loadRom(): void {
     if (cov_btn) {
         cov_btn.addEventListener("click", (e) => { e.preventDefault(); log.coverage(); });
     }
+    window.addEventListener("keydown", keydownDispatch);
+    window.addEventListener("keyup", keyupDispatch);
+}
+
+function keydownDispatch(ev: KeyboardEvent) {
+    switch (ev.key.toLowerCase()) {
+        case "s":
+            invaders.io.downP1Start();
+            break;
+        case "a":
+            invaders.io.downP1Left();
+            break;
+        case "w":
+            invaders.io.downP1Shot();
+            break;
+        case "d":
+            invaders.io.downP1Right();
+            break;
+    }
+}
+function keyupDispatch(ev: KeyboardEvent) {
+    switch (ev.key.toLowerCase()) {
+        case "1":
+            invaders.io.pressCredit();
+            break;
+        case "s":
+            invaders.io.upP1Start();
+            break;
+        case "a":
+            invaders.io.upP1Left();
+            break;
+        case "w":
+            invaders.io.upP1Shot();
+            break;
+        case "d":
+            invaders.io.upP1Right();
+            break;
+    }
 }
 
 window.onload = loadRom;
@@ -693,6 +731,74 @@ class SpaceInvadersIO extends IO8080 {
         this.port[3] = 0b00000000;
     }
 
+    public pressCredit() {
+        this.port[1] |= 0b00000001;
+    }
+
+    public downP2Start() {
+        this.port[1] |= 0b00000010;
+    }
+
+    public upP2Start() {
+        this.port[1] &= 0b11111101;
+    }
+
+    public downP1Start() {
+        this.port[1] |= 0b00000100;
+    }
+
+    public upP1Start() {
+        this.port[1] &= 0b11111011;
+    }
+
+    public downP1Shot() {
+        this.port[1] |= 0b00010000;
+    }
+
+    public upP1Shot() {
+        this.port[1] &= 0b11101111;
+    }
+
+    public downP1Left() {
+        this.port[1] |= 0b00100000;
+    }
+
+    public upP1Left() {
+        this.port[1] &= 0b11011111;
+    }
+
+    public downP1Right() {
+        this.port[1] |= 0b01000000;
+    }
+
+    public upP1Right() {
+        this.port[1] &= 0b10111111;
+    }
+
+    public downP2Shot() {
+        this.port[2] |= 0b00010000;
+    }
+
+    public upP2Shot() {
+        this.port[2] &= 0b11101111;
+    }
+
+    public downP2Left() {
+        this.port[2] |= 0b00100000;
+    }
+
+    public upP2Left() {
+        this.port[2] &= 0b11011111;
+    }
+
+    public downP2Right() {
+        this.port[2] |= 0b01000000;
+    }
+
+    public upP2Right() {
+        this.port[2] &= 0b10111111;
+    }
+
     /**
      * Read port 0, not used
      * bit 0 DIP4 (Seems to be self-test-request read at power up)
@@ -927,8 +1033,8 @@ class State8080 {
         }
     }
 
-    private cycle() {
-        this.cycles += (performance.now() - this.time) * 5000;
+    public cycle() {
+        this.cycles += (performance.now() - this.time) * 2000;
         while (this.cycles > 0) {
             if (!this.ready) {
                 return;
@@ -949,10 +1055,16 @@ class State8080 {
                 log.ops(`Could not execute opcode ${opcode} at ${addr.toString(16).padStart(4, "0")}`, true);
                 throw `Unimplemented OpCode ${opcode} at ${addr.toString(16).padStart(4, "0")}`;
             }
-            this.ops[opcode]();
+            try {
+                this.ops[opcode]();
+            } catch (e) {
+                console.log(`Could not execute opcode ${opcode} at ${this.register.pc.toString(16).padStart(4, "0")}`, true);
+                throw "Error executing code";
+            }
             this.cycles -= this.ops.cycle[opcode];
             if ([0x0ade].indexOf(this.register.pc) > -1) {
-                throw "Breakpoint"
+                // throw "Breakpoint"
+                this.cycles -= 2000;
             }
         }
         setTimeout(() => { this.cycle(); });
@@ -965,6 +1077,10 @@ class State8080 {
 class SpaceInvaders extends State8080 {
     public screen!: CanvasRenderingContext2D;
     public screen_interval: number = 0; // Set interval
+    public screen_interval_l: number = 0; // Set interval
+    public screen_interval_r: number = 0; // Set interval
+    public io!: SpaceInvadersIO;
+    public screen_cycle: number = 0;
 
     /**
      * Load the invaders rom dump into the 8080
@@ -986,7 +1102,9 @@ class SpaceInvaders extends State8080 {
      */
     public run() {
         // Start up the "monitor" that operates at 60Hz
-        this.screen_interval = setInterval(() => { this.drawScreen(); }, 1000 / 60);
+        // this.screen_interval = setInterval(() => { this.drawScreen(); }, 1000 / 60);
+        this.screen_interval_l = setInterval(() => { this.drawScreenLeft(); }, 1000 / 60);
+        setTimeout(() => { this.screen_interval_r = setInterval(() => { this.drawScreenRight(); }, 1000 / 60); }, 1000 / 120);
         // Half vblank
         // End vblank
         setTimeout(() => { super.run(); });
@@ -996,7 +1114,10 @@ class SpaceInvaders extends State8080 {
      * Turn off the timers
      */
     public off() {
+        super.pause();
         clearInterval(this.screen_interval);
+        clearInterval(this.screen_interval_l);
+        clearInterval(this.screen_interval_r);
         console.log("off");
     }
 
@@ -1021,10 +1142,60 @@ class SpaceInvaders extends State8080 {
                 raw.data[i + b * 4 + 2] = v;
                 raw.data[i + b * 4 + 3] = v;
             }
-            // i == 0x60 => rst  8 < 0xcf
-            // i == 0xe0 => rst 10 < 0xd7
+            if ((i == (96 * 255)) && this.int && this.active_int == 0x00) {
+                this.active_int = 0xcf;
+                console.log("0xcf");
+            }
         }
         this.screen.putImageData(raw, 0, 0);
+        if (this.int && this.active_int == 0x00) {
+            this.active_int = 0xd7;
+            console.log("0xd7");
+        }
+    }
+
+    public drawScreenLeft() {
+        let width = 256;
+        let height = 96;
+        let raw = this.screen.createImageData(width, height);
+        for (let i = 0; i < raw.data.byteLength; i += 32) {
+            let byte = this.memory.get(0x2400 + (i / 32));
+            for (let b = 0; b < 8; b++) {
+                let v = ((byte & Math.pow(2, b)) == Math.pow(2, b)) ? 0xff : 0;
+                raw.data[i + b * 4] = v;
+                raw.data[i + b * 4 + 1] = v;
+                raw.data[i + b * 4 + 2] = v;
+                raw.data[i + b * 4 + 3] = v;
+            }
+        }
+        this.screen.putImageData(raw, 0, 0);
+        if (this.int && this.active_int == 0x00) {
+            this.active_int = 0xcf;
+        }
+    }
+
+    public drawScreenRight() {
+        let width = 256;
+        let height = 224 - 96;
+        let raw = this.screen.createImageData(width, height);
+        for (let i = 0; i < raw.data.byteLength; i += 32) {
+            let byte = this.memory.get(0x2400 + ((96 / 8) * 256) + (i / 32));
+            for (let b = 0; b < 8; b++) {
+                let v = ((byte & Math.pow(2, b)) == Math.pow(2, b)) ? 0xff : 0;
+                raw.data[i + b * 4] = v;
+                raw.data[i + b * 4 + 1] = v;
+                raw.data[i + b * 4 + 2] = v;
+                raw.data[i + b * 4 + 3] = v;
+            }
+        }
+        this.screen.putImageData(raw, 0, 96);
+        if (this.int && this.active_int == 0x00) {
+            this.active_int = 0xd7;
+        }
+    }
+
+    public cycle() {
+        super.cycle();
     }
 }
 
