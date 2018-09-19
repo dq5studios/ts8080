@@ -561,8 +561,8 @@ class Registers {
      * @param {number} af New value
      */
     public set psw(af: number) {
-        this.a = (af >> 8) & 0xff;
-        this.f = af & 0xff;
+        this._a = (af >> 8) & 0xff;
+        this._f = af & 0xff;
     }
 
     /**
@@ -571,7 +571,7 @@ class Registers {
      * @return {number} BC
      */
     public get bc(): number {
-        return (this.b << 8) + this.c;
+        return (this._b << 8) + this._c;
     }
 
     /**
@@ -580,8 +580,8 @@ class Registers {
      * @param {number} bc New value
      */
     public set bc(bc: number) {
-        this.b = (bc >> 8) & 0xff;
-        this.c = bc & 0xff;
+        this._b = (bc >> 8) & 0xff;
+        this._c = bc & 0xff;
     }
 
     /**
@@ -590,7 +590,7 @@ class Registers {
      * @return {number} DE
      */
     public get de(): number {
-        return (this.d << 8) + this.e;
+        return (this._d << 8) + this._e;
     }
 
     /**
@@ -599,8 +599,8 @@ class Registers {
      * @param {number} de New value
      */
     public set de(de: number) {
-        this.d = (de >> 8) & 0xff;
-        this.e = de & 0xff;
+        this._d = (de >> 8) & 0xff;
+        this._e = de & 0xff;
     }
 
     /**
@@ -609,7 +609,7 @@ class Registers {
      * @return {number} HL
      */
     public get hl(): number {
-        return (this.h << 8) + this.l;
+        return (this._h << 8) + this._l;
     }
 
     /**
@@ -618,8 +618,8 @@ class Registers {
      * @param {number} hl New value
      */
     public set hl(hl: number) {
-        this.h = (hl >> 8) & 0xff;
-        this.l = hl & 0xff;
+        this._h = (hl >> 8) & 0xff;
+        this._l = hl & 0xff;
     }
 
 }
@@ -1055,6 +1055,10 @@ class State8080 {
             if (!this.ready) {
                 return;
             }
+            // if ([0x262 /*0x0ade*/].indexOf(this.register.pc) > -1) {
+            //     throw "Breakpoint"
+            //     // this.cycles -= 2000;
+            // }
             if (this.int && this.active_int > 0x00) {
                 this.int = false;
                 this.register.pc -= 2;
@@ -1062,12 +1066,9 @@ class State8080 {
                 this.active_int = 0x00;
             }
             let opcode = this.memory.get(this.register.pc);
-            if (pc_buffer.push(`pc: ${this.register.pc.toString(16)}; hl: ${this.register.hl.toString(16)}`) > 10) {
-                pc_buffer.shift();
-            }
-            if (this.register.pc == 0x1a65) {
-                opcode = 0xca;
-            }
+            // if (pc_buffer.push(`pc: ${this.register.pc.toString(16)}; hl: ${this.register.hl.toString(16)}; d: ${this.register.d.toString(16)}; a: ${this.register.a.toString(8)}`) > 10) {
+            //     pc_buffer.shift();
+            // }
             if (typeof this.ops[opcode] === "undefined") {
                 let addr = this.register.pc;
                 let opcode = this.memory.get(addr).toString(16).padStart(2, "0");
@@ -1081,10 +1082,6 @@ class State8080 {
                 throw "Error executing code";
             }
             this.cycles -= this.ops.cycle[opcode];
-            if ([0x0ade].indexOf(this.register.pc) > -1) {
-                // throw "Breakpoint"
-                // this.cycles -= 2000;
-            }
         }
         if (l2) {
             console.log(this.cycles);
@@ -1169,15 +1166,21 @@ class SpaceInvaders extends State8080 {
 
     public drawScreenToggle() {
         this.drawScreen();
-        if (this.int && this.active_int == 0x00) {
-            this.active_int = 0xd7;
-        }
-        // if (this.screen_cycle === 0) {
-        //     this.drawScreenLeft();
-        // } else {
-        //     this.drawScreenRight();
+        // if (this.int && this.active_int == 0x00) {
+        //     this.active_int = 0xd7;
         // }
-        // this.screen_cycle ^= 1;
+        if (this.screen_cycle === 0) {
+            // this.drawScreenLeft();
+            if (this.int && this.active_int == 0x00) {
+                this.active_int = 0xcf;
+            }
+        } else {
+            // this.drawScreenRight();
+            if (this.int && this.active_int == 0x00) {
+                this.active_int = 0xd7;
+            }
+        }
+        this.screen_cycle ^= 1;
     }
 
     public drawScreenLeft() {
@@ -3651,8 +3654,7 @@ class OpCodes {
      * H <-> D; L <-> E
      */
     public 0xeb = () => {
-        [this.state.register.d, this.state.register.h] = [this.state.register.h, this.state.register.d];
-        [this.state.register.e, this.state.register.l] = [this.state.register.l, this.state.register.e];
+        [this.state.register.de, this.state.register.hl] = [this.state.register.hl, this.state.register.de];
         this.state.register.pc += 1;
         log.ops(`XCHG`);
     }
