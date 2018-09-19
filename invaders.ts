@@ -144,6 +144,8 @@ class Logger {
 let invaders: State8080;
 let logging_enabled: boolean = false;
 let log: Logger = new Logger();
+let l2 = false;
+let pc_buffer: string[] = [];
 
 /**
  * Load rom into memory
@@ -180,6 +182,9 @@ function loadRom(): void {
 
 function keydownDispatch(ev: KeyboardEvent) {
     switch (ev.key.toLowerCase()) {
+        case "1":
+            invaders.io.downCredit();
+            break;
         case "s":
             invaders.io.downP1Start();
             break;
@@ -197,7 +202,7 @@ function keydownDispatch(ev: KeyboardEvent) {
 function keyupDispatch(ev: KeyboardEvent) {
     switch (ev.key.toLowerCase()) {
         case "1":
-            invaders.io.pressCredit();
+            invaders.io.upCredit();
             break;
         case "s":
             invaders.io.upP1Start();
@@ -639,7 +644,8 @@ class Memory {
      */
     public get(addr: number): number {
         if (addr >= 0x4000) {
-            console.log(`Memory read request to out of bounds address ${addr}`, true);
+            invaders.pause();
+            console.log(invaders.register.pc, `Memory read request to out of bounds address ${addr}`);
             return 0;
         }
         return this.memory.getUint8(addr);
@@ -654,7 +660,8 @@ class Memory {
      */
     public get16(addr: number): number {
         if (addr >= 0x4000) {
-            console.log(`Memory read request to out of bounds address ${addr}`, true);
+            invaders.pause();
+            console.log(invaders.register.pc, `Memory read request to out of bounds address ${addr}`);
             return 0;
         }
         return this.memory.getUint16(addr, true);
@@ -668,11 +675,13 @@ class Memory {
      */
     public set(addr: number, value: number): void {
         if (addr < 0x2000) {
-            console.log(`Memory write request to read only memory address ${addr}`, true);
+            invaders.pause();
+            console.log(invaders.register.pc, `Memory write request to read only memory address ${addr}`);
             return;
         }
         if (addr >= 0x4000) {
-            console.log(`Memory write request to out of bounds address ${addr}`, true);
+            invaders.pause();
+            console.log(invaders.register.pc, `Memory write request to out of bounds address ${addr}`, true);
             return;
         }
         this.memory.setUint8(addr, value);
@@ -687,11 +696,13 @@ class Memory {
      */
     public set16(addr: number, value: number): void {
         if (addr < 0x2000) {
-            console.log(`Memory write request to read only memory address ${addr}`, true);
+            invaders.pause();
+            console.log(invaders.register.pc, `Memory write request to read only memory address ${addr}`);
             return;
         }
         if (addr >= 0x4000) {
-            console.log(`Memory write request to out of bounds address ${addr}`, true);
+            invaders.pause();
+            console.log(invaders.register.pc, `Memory write request to out of bounds address ${addr}`);
             return;
         }
         try {
@@ -708,6 +719,7 @@ class Memory {
  * IO port of 8080
  */
 class IO8080 {}
+
 /**
  * IO ports for Space Invaders machine
  */
@@ -731,8 +743,12 @@ class SpaceInvadersIO extends IO8080 {
         this.port[3] = 0b00000000;
     }
 
-    public pressCredit() {
+    public downCredit() {
         this.port[1] |= 0b00000001;
+    }
+
+    public upCredit() {
+        this.port[1] &= 0b11111110;
     }
 
     public downP2Start() {
@@ -898,10 +914,10 @@ class SpaceInvadersIO extends IO8080 {
      */
     public set 0x06(v: number) {
         if (typeof this.alpha[v] === "undefined") {
-            console.log(v);
+            // console.log(v);
             return;
         }
-        console.log(this.alpha[v]);
+        // console.log(this.alpha[v]);
     }
 }
 
@@ -1046,6 +1062,9 @@ class State8080 {
                 this.active_int = 0x00;
             }
             let opcode = this.memory.get(this.register.pc);
+            if (pc_buffer.push(`pc: ${this.register.pc.toString(16)}; hl: ${this.register.hl.toString(16)}`) > 10) {
+                pc_buffer.shift();
+            }
             if (this.register.pc == 0x1a65) {
                 opcode = 0xca;
             }
@@ -1064,10 +1083,13 @@ class State8080 {
             this.cycles -= this.ops.cycle[opcode];
             if ([0x0ade].indexOf(this.register.pc) > -1) {
                 // throw "Breakpoint"
-                this.cycles -= 2000;
+                // this.cycles -= 2000;
             }
         }
-        setTimeout(() => { this.cycle(); });
+        if (l2) {
+            console.log(this.cycles);
+        }
+        setTimeout(() => { this.cycle(); }, 1);
     }
 }
 
@@ -1103,8 +1125,7 @@ class SpaceInvaders extends State8080 {
     public run() {
         // Start up the "monitor" that operates at 60Hz
         // this.screen_interval = setInterval(() => { this.drawScreen(); }, 1000 / 60);
-        this.screen_interval_l = setInterval(() => { this.drawScreenLeft(); }, 1000 / 60);
-        setTimeout(() => { this.screen_interval_r = setInterval(() => { this.drawScreenRight(); }, 1000 / 60); }, 1000 / 120);
+        this.screen_interval = setInterval(() => { this.drawScreenToggle(); }, 1000 / 60);
         // Half vblank
         // End vblank
         setTimeout(() => { super.run(); });
@@ -1142,16 +1163,21 @@ class SpaceInvaders extends State8080 {
                 raw.data[i + b * 4 + 2] = v;
                 raw.data[i + b * 4 + 3] = v;
             }
-            if ((i == (96 * 255)) && this.int && this.active_int == 0x00) {
-                this.active_int = 0xcf;
-                console.log("0xcf");
-            }
         }
         this.screen.putImageData(raw, 0, 0);
+    }
+
+    public drawScreenToggle() {
+        this.drawScreen();
         if (this.int && this.active_int == 0x00) {
             this.active_int = 0xd7;
-            console.log("0xd7");
         }
+        // if (this.screen_cycle === 0) {
+        //     this.drawScreenLeft();
+        // } else {
+        //     this.drawScreenRight();
+        // }
+        // this.screen_cycle ^= 1;
     }
 
     public drawScreenLeft() {
@@ -1297,6 +1323,17 @@ class OpCodes {
     }
 
     /**
+     * A = A << 1; bit 0 = prev bit 7; CY = prev bit 7
+     */
+    public 0x07 = () => {
+        let cy = this.state.register.a & 0x80;
+        this.state.register.a = this.state.register.a << 1 | cy;
+        this.state.cc.cy = cy;
+        log.ops(`RLC`);
+        this.state.register.pc += 1;
+    }
+
+    /**
      * HL = HL + BC
      */
     public 0x09 = () => {
@@ -1423,6 +1460,17 @@ class OpCodes {
     }
 
     /**
+     * A = A << 1; bit 0 = prev CY; CY = prev bit 7
+     */
+    public 0x17 = () => {
+        let cy = this.state.register.a & 0x80;
+        this.state.register.a = this.state.register.a << 1 | this.state.cc.cy;
+        this.state.cc.cy = cy;
+        log.ops(`RAL`);
+        this.state.register.pc += 1;
+    }
+
+    /**
      * HL = HL + DE
      */
     public 0x19 = () => {
@@ -1543,6 +1591,24 @@ class OpCodes {
         this.state.register.h = byte;
         log.ops(`MVI H ${byte.toString(16)}`);
         this.state.register.pc += 2;
+    }
+
+    /**
+     * Decimal Adjust Accumulator
+     * Treats the A register as if it was two decimal digits
+     */
+    public 0x27 = () => {
+        if ((this.state.register.a & 0x0f) > 0) {
+            this.state.register.a += 6;
+        }
+        if ((this.state.register.a & 0xf0) > 0x90) {
+            let ans = this.state.register.a + 0x60
+            this.state.cc.carry(ans);
+            this.state.register.a = ans;
+        }
+        this.state.cc.setSZP(this.state.register.a);
+        log.ops(`DAA`);
+        this.state.register.pc += 1;
     }
 
     /**
@@ -1673,6 +1739,12 @@ class OpCodes {
         this.state.memory.set(this.state.register.hl, byte);
         log.ops(`MVI M ${byte.toString(16)}`);
         this.state.register.pc += 2;
+    }
+
+    public 0x037 = () => {
+        this.state.cc.cy = 1;
+        log.ops(`STC`);
+        this.state.register.pc += 1;
     }
 
     /**
@@ -2238,6 +2310,15 @@ class OpCodes {
         this.state.memory.set(m, this.state.register.l);
         log.ops(`MOV M,L (${m.toString(16)})`);
         this.state.register.pc += 1;
+    }
+
+    /**
+     * HALT
+     */
+    public 0x76 = () => {
+        this.state.register.pc += 1;
+        this.state.pause();
+        log.ops("HLT");
     }
 
     /**
@@ -3482,9 +3563,13 @@ class OpCodes {
     /**
      * L <-> (SP); H <-> (SP+1)
      */
-    // public 0xe3 = () => {
-    //     log.ops(`XTHL`);
-    // }
+    public 0xe3 = () => {
+        let hl = this.state.register.hl;
+        this.state.register.hl = this.state.memory.get16(this.state.register.sp);
+        this.state.memory.set16(this.state.register.sp, hl);
+        this.state.register.pc += 1;
+        log.ops(`XTHL`);
+    }
 
     /**
      * if PO, CALL adr
@@ -3539,6 +3624,15 @@ class OpCodes {
             return;
         }
         this.return("RPE");
+    }
+
+    /**
+     * PC.hi <- H; PC.lo <- L
+     */
+    public 0xe9 = () => {
+        this.state.register.pc = this.state.register.hl;
+        // this.state.register.pc += 1;
+        log.ops(`PCHL`);
     }
 
     /**
@@ -3691,6 +3785,15 @@ class OpCodes {
             return;
         }
         this.return("RM");
+    }
+
+    /**
+     * SP=HL
+     */
+    public 0xf9 = () => {
+        this.state.register.sp = this.state.register.hl;
+        this.state.register.pc += 1;
+        log.ops(`SPHL`);
     }
 
     /**
