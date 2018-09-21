@@ -254,7 +254,7 @@ class ConditionCodes {
      * @param {number} result Result of the previous operation
      */
     public carry(result: number): void {
-        this.cy = Number(result > 0xff);
+        this.cy = Number(result > 0xff || result < 0x00);
     }
 
     /**
@@ -278,7 +278,7 @@ class ConditionCodes {
         let x = (result & ((1 << 8) - 1));
         for (let i = 0; i < 8; i++) {
             if (x & 0x1) {
-                p++
+                p++;
             }
             x = x >> 1;
         }
@@ -952,6 +952,8 @@ class State8080 {
      * Initialize registers
      */
     public init(): void {
+        // this.register.pc = 0x100;
+        // this.register.sp = 0x7ad;
         this.register.pc = 0;
         this.register.sp = 0x2400;
         this.ready = true;
@@ -1028,9 +1030,9 @@ class State8080 {
             }
             log.step();
             let opcode = this.memory.get(this.register.pc);
-            if (this.register.pc == 0x1a65) {
-                opcode = 0xca;
-            }
+            // if (this.register.pc == 0x1a65) {
+            //     opcode = 0xca;
+            // }
             if (typeof this.ops[opcode] === "undefined") {
                 let addr = this.register.pc;
                 let opcode = this.memory.get(addr).toString(16).padStart(2, "0");
@@ -1065,6 +1067,7 @@ class State8080 {
                 this.ops[this.active_int]();
                 this.active_int = 0x00;
             }
+            log.step();
             let opcode = this.memory.get(this.register.pc);
             // if (pc_buffer.push(`pc: ${this.register.pc.toString(16)}; hl: ${this.register.hl.toString(16)}; d: ${this.register.d.toString(16)}; a: ${this.register.a.toString(8)}`) > 10) {
             //     pc_buffer.shift();
@@ -3083,7 +3086,7 @@ class OpCodes {
      * A - B
      */
     public 0xb8 = () => {
-        let ans = this.state.register.a ^ this.state.register.b;
+        let ans = this.state.register.a - this.state.register.b;
         this.state.cc.setSZP(ans);
         this.state.cc.carry(ans);
         this.state.register.pc += 1;
@@ -3094,7 +3097,7 @@ class OpCodes {
      * A - C
      */
     public 0xb9 = () => {
-        let ans = this.state.register.a ^ this.state.register.c;
+        let ans = this.state.register.a - this.state.register.c;
         this.state.cc.setSZP(ans);
         this.state.cc.carry(ans);
         this.state.register.pc += 1;
@@ -3105,7 +3108,7 @@ class OpCodes {
      * A - D
      */
     public 0xba = () => {
-        let ans = this.state.register.a ^ this.state.register.d;
+        let ans = this.state.register.a - this.state.register.d;
         this.state.cc.setSZP(ans);
         this.state.cc.carry(ans);
         this.state.register.pc += 1;
@@ -3116,7 +3119,7 @@ class OpCodes {
      * A - E
      */
     public 0xbb = () => {
-        let ans = this.state.register.a ^ this.state.register.e;
+        let ans = this.state.register.a - this.state.register.e;
         this.state.cc.setSZP(ans);
         this.state.cc.carry(ans);
         this.state.register.pc += 1;
@@ -3127,7 +3130,7 @@ class OpCodes {
      * A - H
      */
     public 0xbc = () => {
-        let ans = this.state.register.a ^ this.state.register.h;
+        let ans = this.state.register.a - this.state.register.h;
         this.state.cc.setSZP(ans);
         this.state.cc.carry(ans);
         this.state.register.pc += 1;
@@ -3138,7 +3141,7 @@ class OpCodes {
      * A - L
      */
     public 0xbd = () => {
-        let ans = this.state.register.a ^ this.state.register.l;
+        let ans = this.state.register.a - this.state.register.l;
         this.state.cc.setSZP(ans);
         this.state.cc.carry(ans);
         this.state.register.pc += 1;
@@ -3149,7 +3152,7 @@ class OpCodes {
      * A - (HL)
      */
     public 0xbe = () => {
-        let ans = this.state.register.a ^ this.state.memory.get(this.state.register.hl);
+        let ans = this.state.register.a - this.state.memory.get(this.state.register.hl);
         this.state.cc.setSZP(ans);
         this.state.cc.carry(ans);
         this.state.register.pc += 1;
@@ -3160,7 +3163,7 @@ class OpCodes {
      * A - A
      */
     public 0xbf = () => {
-        let ans = this.state.register.a ^ this.state.register.a;
+        let ans = this.state.register.a - this.state.register.a;
         this.state.cc.setSZP(ans);
         this.state.cc.carry(ans);
         this.state.register.pc += 1;
@@ -3838,7 +3841,7 @@ class OpCodes {
         let byte = this.state.memory.get(this.state.register.pc + 1);
         let ans = this.state.register.a - byte;
         this.state.cc.setSZP(ans);
-        this.state.cc.carry(ans);
+        this.state.cc.cy = Number(this.state.register.a < byte);
         this.state.register.pc += 2;
         log.ops(`CPI ${byte.toString(16)}`);
     }
@@ -3872,6 +3875,7 @@ if (typeof ArrayBuffer.transfer === "undefined") {
             return source.slice(0, length);
         var sourceView = new Uint8Array(source),
             destView = new Uint8Array(new ArrayBuffer(length));
+        // destView.set(sourceView, 0x100);
         destView.set(sourceView);
         return destView.buffer;
     };
