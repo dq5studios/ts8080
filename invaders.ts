@@ -146,6 +146,7 @@ let logging_enabled: boolean = false;
 let log: Logger = new Logger();
 let l2 = false;
 let pc_buffer: string[] = [];
+let cpudiag = false;
 
 /**
  * Load rom into memory
@@ -674,7 +675,7 @@ class Memory {
      * @param {number} value Byte to set
      */
     public set(addr: number, value: number): void {
-        if (addr < 0x2000) {
+        if (addr < 0x2000 && !cpudiag) {
             invaders.pause();
             console.log(invaders.register.pc, `Memory write request to read only memory address ${addr}`);
             return;
@@ -695,7 +696,7 @@ class Memory {
      * @param {number} value Bytes to set
      */
     public set16(addr: number, value: number): void {
-        if (addr < 0x2000) {
+        if (addr < 0x2000 && !cpudiag) {
             invaders.pause();
             console.log(invaders.register.pc, `Memory write request to read only memory address ${addr}`);
             return;
@@ -952,10 +953,17 @@ class State8080 {
      * Initialize registers
      */
     public init(): void {
-        // this.register.pc = 0x100;
-        // this.register.sp = 0x7ad;
-        this.register.pc = 0;
-        this.register.sp = 0x2400;
+        if (cpudiag) {
+            this.register.pc = 0x100;
+            this.register.sp = 0x7ad;
+            // remove when fixing aux carry
+            this.memory.set(0x59c, 0xc3);
+            this.memory.set(0x59d, 0xc2);
+            this.memory.set(0x59e, 0x05);
+        } else {
+            this.register.pc = 0;
+            this.register.sp = 0x2400;
+        }
         this.ready = true;
         console.log("Ready");
     }
@@ -1333,8 +1341,8 @@ class OpCodes {
      */
     public 0x07 = () => {
         let cy = this.state.register.a & 0x80;
-        this.state.register.a = this.state.register.a << 1 | cy;
-        this.state.cc.cy = cy;
+        this.state.register.a = this.state.register.a << 1 | cy >> 7;
+        this.state.cc.cy = Number(cy == 0x80);
         log.ops(`RLC`);
         this.state.register.pc += 1;
     }
@@ -1557,7 +1565,7 @@ class OpCodes {
      */
     public 0x22 = () => {
         let addr = this.state.memory.get16(this.state.register.pc + 1);
-        this.state.register.hl = this.state.memory.get16(addr);
+        this.state.memory.set16(addr, this.state.register.hl);
         log.ops(`SHLD ${addr.toString(16).padStart(4, "0")}`);
         this.state.register.pc += 3;
     }
@@ -1634,7 +1642,7 @@ class OpCodes {
     public 0x2a = () => {
         let addr = this.state.memory.get16(this.state.register.pc + 1);
         this.state.register.hl = this.state.memory.get16(addr);
-        log.ops(`LDAX ${addr.toString(16).padStart(4, "0")}`);
+        log.ops(`LDAX HL ${addr.toString(16).padStart(4, "0")}`);
         this.state.register.pc += 3;
     }
 
@@ -1770,7 +1778,7 @@ class OpCodes {
     public 0x3a = () => {
         let addr = this.state.memory.get16(this.state.register.pc + 1);
         this.state.register.a = this.state.memory.get(addr);
-        log.ops(`LDAX ${addr.toString(16).padStart(4, "0")}`);
+        log.ops(`LDAX A ${addr.toString(16).padStart(4, "0")}`);
         this.state.register.pc += 3;
     }
 
@@ -3873,10 +3881,10 @@ if (typeof ArrayBuffer.transfer === "undefined") {
             throw new TypeError('Source must be an instance of ArrayBuffer');
         if (length <= source.byteLength)
             return source.slice(0, length);
-        var sourceView = new Uint8Array(source),
-            destView = new Uint8Array(new ArrayBuffer(length));
-        // destView.set(sourceView, 0x100);
-        destView.set(sourceView);
+        let sourceView = new Uint8Array(source);
+        let destView = new Uint8Array(new ArrayBuffer(length));
+        let offset = cpudiag ? 0x100 : 0;
+        destView.set(sourceView, offset);
         return destView.buffer;
     };
 }
