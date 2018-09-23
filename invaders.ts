@@ -562,8 +562,8 @@ class Registers {
      * @param {number} af New value
      */
     public set psw(af: number) {
-        this._a = (af >> 8) & 0xff;
-        this._f = af & 0xff;
+        this.a = (af >> 8) & 0xff;
+        this.f = af & 0xff;
     }
 
     /**
@@ -581,8 +581,8 @@ class Registers {
      * @param {number} bc New value
      */
     public set bc(bc: number) {
-        this._b = (bc >> 8) & 0xff;
-        this._c = bc & 0xff;
+        this.b = (bc >> 8) & 0xff;
+        this.c = bc & 0xff;
     }
 
     /**
@@ -600,8 +600,8 @@ class Registers {
      * @param {number} de New value
      */
     public set de(de: number) {
-        this._d = (de >> 8) & 0xff;
-        this._e = de & 0xff;
+        this.d = (de >> 8) & 0xff;
+        this.e = de & 0xff;
     }
 
     /**
@@ -619,8 +619,8 @@ class Registers {
      * @param {number} hl New value
      */
     public set hl(hl: number) {
-        this._h = (hl >> 8) & 0xff;
-        this._l = hl & 0xff;
+        this.h = (hl >> 8) & 0xff;
+        this.l = hl & 0xff;
     }
 
 }
@@ -646,7 +646,7 @@ class Memory {
     public get(addr: number): number {
         if (addr >= 0x4000) {
             invaders.pause();
-            console.log(invaders.register.pc, `Memory read request to out of bounds address ${addr}`);
+            console.log(invaders.register.pc.toString(16), `Memory read request to out of bounds address ${addr.toString(16)}`);
             return 0;
         }
         return this.memory.getUint8(addr);
@@ -662,7 +662,7 @@ class Memory {
     public get16(addr: number): number {
         if (addr >= 0x4000) {
             invaders.pause();
-            console.log(invaders.register.pc, `Memory read request to out of bounds address ${addr}`);
+            console.log(invaders.register.pc.toString(16), `Memory read request to out of bounds address ${addr.toString(16)}`);
             return 0;
         }
         return this.memory.getUint16(addr, true);
@@ -677,16 +677,16 @@ class Memory {
     public set(addr: number, value: number): void {
         if (addr < 0x2000 && !cpudiag) {
             invaders.pause();
-            console.log(invaders.register.pc, `Memory write request to read only memory address ${addr}`);
+            console.log(invaders.register.pc.toString(16), `Memory write request to read only memory address ${addr.toString(16)}`);
             return;
         }
         if (addr >= 0x4000) {
             invaders.pause();
-            console.log(invaders.register.pc, `Memory write request to out of bounds address ${addr}`, true);
+            console.log(invaders.register.pc.toString(16), `Memory write request to out of bounds address ${addr.toString(16)}`, true);
             return;
         }
         this.memory.setUint8(addr, value);
-        // log.updateMemory(addr, value);
+        log.updateMemory(addr, value);
     }
 
     /**
@@ -698,12 +698,12 @@ class Memory {
     public set16(addr: number, value: number): void {
         if (addr < 0x2000 && !cpudiag) {
             invaders.pause();
-            console.log(invaders.register.pc, `Memory write request to read only memory address ${addr}`);
+            console.log(invaders.register.pc.toString(16), `Memory write request to read only memory address ${addr.toString(16)}`);
             return;
         }
         if (addr >= 0x4000) {
             invaders.pause();
-            console.log(invaders.register.pc, `Memory write request to out of bounds address ${addr}`);
+            console.log(invaders.register.pc.toString(16), `Memory write request to out of bounds address ${addr.toString(16)}`);
             return;
         }
         try {
@@ -712,7 +712,7 @@ class Memory {
             console.log(addr.toString(16).padStart(4, "0"), value.toString(16).padStart(4, "0"), e);
             throw e;
         }
-        // log.updateMemory(addr, value);
+        log.updateMemory(addr, value);
     }
 }
 
@@ -960,6 +960,7 @@ class State8080 {
             this.memory.set(0x59c, 0xc3);
             this.memory.set(0x59d, 0xc2);
             this.memory.set(0x59e, 0x05);
+            this.memory.set16(0x06, 0x1400);
         } else {
             this.register.pc = 0;
             this.register.sp = 0x2400;
@@ -1642,7 +1643,7 @@ class OpCodes {
     public 0x2a = () => {
         let addr = this.state.memory.get16(this.state.register.pc + 1);
         this.state.register.hl = this.state.memory.get16(addr);
-        log.ops(`LDAX HL ${addr.toString(16).padStart(4, "0")}`);
+        log.ops(`LHLD ${addr.toString(16).padStart(4, "0")}`);
         this.state.register.pc += 3;
     }
 
@@ -3356,6 +3357,29 @@ class OpCodes {
      * (SP-1)<-PC.hi;(SP-2)<-PC.lo;SP<-SP-2;PC=adr
      */
     public 0xcd = () => {
+        if (cpudiag) {
+            if (this.state.memory.get16(this.state.register.pc + 1) == 0x05) {
+                if (this.state.register.c === 0x09) {
+                    let addr = this.state.register.de;
+                    let chr = String.fromCharCode(this.state.memory.get(addr));
+                    let str = "";
+                    while (chr !== "$") {
+                        str += chr;
+                        chr = String.fromCharCode(this.state.memory.get(++addr));
+                    }
+                    console.log(str);
+                    this.state.ready = false;
+                    return;
+                } else if (this.state.register.c === 0x02) {
+                    console.log("print routine called");
+                    this.state.ready = false;
+                    return;
+                }
+            } else if (this.state.memory.get16(this.state.register.pc + 1) === 0x00) {
+                this.state.ready = false;
+                return;
+            }
+        }
         this.call("CALL");
     }
 
