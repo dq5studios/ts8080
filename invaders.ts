@@ -116,6 +116,23 @@ class Logger {
         reg_inp.value = val.toString(16).padStart(reg_inp.maxLength, "0");
     }
 
+    public refreshRegisters(): void {
+        this.reg("a", invaders.register.a);
+        this.reg("b", invaders.register.b);
+        this.reg("c", invaders.register.c);
+        this.reg("d", invaders.register.d);
+        this.reg("e", invaders.register.e);
+        this.reg("h", invaders.register.h);
+        this.reg("l", invaders.register.l);
+        this.reg("pc", invaders.register.pc);
+        this.reg("sp", invaders.register.sp);
+        this.reg("z", invaders.cc.z);
+        this.reg("s", invaders.cc.s);
+        this.reg("p", invaders.cc.p);
+        this.reg("cy", invaders.cc.cy);
+        this.reg("ac", invaders.cc.ac);
+    }
+
     /**
      * Print out if an op code is implemented or not
      */
@@ -131,9 +148,9 @@ class Logger {
                 chunk += `\n`;
             }
             let cls = typeof invaders.ops[i] === "undefined" ? "bg-danger": "bg-success";
-            if ([0x10, 0x20, 0x30, 0x08, 0x18, 0x28, 0x38, 0xcb, 0xd9, 0xdd, 0xed, 0xfd].indexOf(i) > -1) {
-                cls = "bg-warning";
-            }
+            // if ([0x10, 0x20, 0x30, 0x08, 0x18, 0x28, 0x38, 0xcb, 0xd9, 0xdd, 0xed, 0xfd].indexOf(i) > -1) {
+            //     cls = "bg-warning";
+            // }
             chunk += `<kbd class="${cls}">${i.toString(16).padStart(2, "0")}</kbd>`;
         }
         ops_pre.innerHTML = chunk + `\n`;
@@ -144,7 +161,6 @@ class Logger {
 let invaders: State8080;
 let logging_enabled: boolean = false;
 let log: Logger = new Logger();
-let l2 = false;
 let pc_buffer: string[] = [];
 let cpudiag = false;
 
@@ -985,8 +1001,8 @@ class State8080 {
         }
         try {
             // this.exec(1, Infinity);
-            // this.time = Date.now();
-            this.time = performance.now();
+            this.time = Date.now();
+            // this.time = performance.now();
             this.cycle();
         } catch (err) {
             console.log(err);
@@ -1039,9 +1055,9 @@ class State8080 {
             }
             log.step();
             let opcode = this.memory.get(this.register.pc);
-            // if (this.register.pc == 0x1a65) {
-            //     opcode = 0xca;
-            // }
+            if (this.register.pc == 0x1a65) {
+                opcode = 0xca;
+            }
             if (typeof this.ops[opcode] === "undefined") {
                 let addr = this.register.pc;
                 let opcode = this.memory.get(addr).toString(16).padStart(2, "0");
@@ -1061,14 +1077,15 @@ class State8080 {
     }
 
     public cycle() {
-        this.cycles += (performance.now() - this.time) * 2000;
+        // this.cycles += (performance.now() - this.time) * 2000;
+        this.cycles += (Date.now() - this.time) * 2000;
+        this.time = Date.now();
         while (this.cycles > 0) {
             if (!this.ready) {
                 return;
             }
-            // if ([0x262 /*0x0ade*/].indexOf(this.register.pc) > -1) {
+            // if ([0x0248].indexOf(this.register.pc) > -1) {
             //     throw "Breakpoint"
-            //     // this.cycles -= 2000;
             // }
             if (this.int && this.active_int > 0x00) {
                 this.int = false;
@@ -1078,7 +1095,10 @@ class State8080 {
             }
             log.step();
             let opcode = this.memory.get(this.register.pc);
-            // if (pc_buffer.push(`pc: ${this.register.pc.toString(16)}; hl: ${this.register.hl.toString(16)}; d: ${this.register.d.toString(16)}; a: ${this.register.a.toString(8)}`) > 10) {
+            // if (logging_enabled && pc_buffer.push(`pc: ${this.register.pc.toString(16)}; hl: ${this.register.hl.toString(16)}; de: ${this.register.de.toString(16)}; bc: ${this.register.bc.toString(8)}; a: ${this.register.psw.toString(8)}`) > 20) {
+            //     pc_buffer.shift();
+            // }
+            // if (pc_buffer.push(this.register.pc.toString(16)) > 20) {
             //     pc_buffer.shift();
             // }
             if (typeof this.ops[opcode] === "undefined") {
@@ -1087,6 +1107,18 @@ class State8080 {
                 log.ops(`Could not execute opcode ${opcode} at ${addr.toString(16).padStart(4, "0")}`, true);
                 throw `Unimplemented OpCode ${opcode} at ${addr.toString(16).padStart(4, "0")}`;
             }
+            // Opcode JMP 0xad7 (C3 D7 0A) is a delay loop
+            if (this.memory.get(this.register.pc) === 0xc3) {
+                // JMP command
+                if (this.memory.get16(this.register.pc + 1) === 0x0ad7) {
+                    // Move to RET command of wait subroutine
+                    this.register.pc = 0x0ae1;
+                    // A register contains how many cycles to wait
+                    let len = this.register.a / 0x40;
+                    setTimeout(() => { this.time = Date.now(); this.cycle(); }, 1000 * len);
+                    return;
+                }
+            }
             try {
                 this.ops[opcode]();
             } catch (e) {
@@ -1094,9 +1126,6 @@ class State8080 {
                 throw "Error executing code";
             }
             this.cycles -= this.ops.cycle[opcode];
-        }
-        if (l2) {
-            console.log(this.cycles);
         }
         setTimeout(() => { this.cycle(); }, 1);
     }
@@ -1613,7 +1642,7 @@ class OpCodes {
      * Treats the A register as if it was two decimal digits
      */
     public 0x27 = () => {
-        if ((this.state.register.a & 0x0f) > 0) {
+        if ((this.state.register.a & 0x0f) > 0x09) {
             this.state.register.a += 6;
         }
         if ((this.state.register.a & 0xf0) > 0x90) {
