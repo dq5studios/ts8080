@@ -159,7 +159,7 @@ class Logger {
 
 
 let invaders: State8080;
-let logging_enabled: boolean = false;
+let logging_enabled = false;
 let log: Logger = new Logger();
 let pc_buffer: string[] = [];
 let cpudiag = false;
@@ -198,6 +198,9 @@ function loadRom(): void {
 }
 
 function keydownDispatch(ev: KeyboardEvent) {
+    if (!invaders.io) {
+        return;
+    }
     switch (ev.key.toLowerCase()) {
         case "1":
             invaders.io.downCredit();
@@ -217,6 +220,9 @@ function keydownDispatch(ev: KeyboardEvent) {
     }
 }
 function keyupDispatch(ev: KeyboardEvent) {
+    if (!invaders.io) {
+        return;
+    }
     switch (ev.key.toLowerCase()) {
         case "1":
             invaders.io.upCredit();
@@ -952,6 +958,7 @@ class State8080 {
     public cycles = 0; // Number of cycles executed
     public io!: IO8080;
     public time: number = 0;
+    public stack: string[] = [];
 
     /**
      * Creates an instance of State8080
@@ -980,6 +987,7 @@ class State8080 {
         } else {
             this.register.pc = 0;
             this.register.sp = 0x2400;
+            // this.memory.set(0x026a, 0x6e);
         }
         this.ready = true;
         console.log("Ready");
@@ -1084,12 +1092,13 @@ class State8080 {
             if (!this.ready) {
                 return;
             }
-            // if ([0x0248].indexOf(this.register.pc) > -1) {
+            // if ([0x026e /*0x0248*/].indexOf(this.register.pc) > -1) {
+            //     invaders.pause();
             //     throw "Breakpoint"
             // }
             if (this.int && this.active_int > 0x00) {
                 this.int = false;
-                this.register.pc -= 2;
+                // this.register.pc -= 2;
                 this.ops[this.active_int]();
                 this.active_int = 0x00;
             }
@@ -1098,9 +1107,9 @@ class State8080 {
             // if (logging_enabled && pc_buffer.push(`pc: ${this.register.pc.toString(16)}; hl: ${this.register.hl.toString(16)}; de: ${this.register.de.toString(16)}; bc: ${this.register.bc.toString(8)}; a: ${this.register.psw.toString(8)}`) > 20) {
             //     pc_buffer.shift();
             // }
-            // if (pc_buffer.push(this.register.pc.toString(16)) > 20) {
-            //     pc_buffer.shift();
-            // }
+            if (pc_buffer.push(this.register.pc.toString(16)) > 20) {
+                pc_buffer.shift();
+            }
             if (typeof this.ops[opcode] === "undefined") {
                 let addr = this.register.pc;
                 let opcode = this.memory.get(addr).toString(16).padStart(2, "0");
@@ -1115,6 +1124,7 @@ class State8080 {
                     this.register.pc = 0x0ae1;
                     // A register contains how many cycles to wait
                     let len = this.register.a / 0x40;
+                    console.log(`delay for ${len} seconds`);
                     setTimeout(() => { this.time = Date.now(); this.cycle(); }, 1000 * len);
                     return;
                 }
@@ -1785,7 +1795,10 @@ class OpCodes {
         this.state.register.pc += 2;
     }
 
-    public 0x037 = () => {
+    /**
+     * CY = 1
+     */
+    public 0x37 = () => {
         this.state.cc.cy = 1;
         log.ops(`STC`);
         this.state.register.pc += 1;
@@ -2362,6 +2375,7 @@ class OpCodes {
     public 0x76 = () => {
         this.state.register.pc += 1;
         this.state.pause();
+        console.log("HALT");
         log.ops("HLT");
     }
 
@@ -3224,19 +3238,9 @@ class OpCodes {
      * C <- (sp); B <- (sp+1); sp <- sp+2
      */
     public 0xc1 = () => {
-        this.state.register.bc = this.state.memory.get16(this.state.register.sp);
-        this.state.register.sp += 2;
+        this.state.register.bc = this.pop();
         this.state.register.pc += 1;
         log.ops(`POP B`);
-    }
-
-    /**
-     * Jump to address contained in bytes 2 and 3
-     */
-    private jump(type: string): void {
-        let addr = this.state.memory.get16(this.state.register.pc + 1);
-        this.state.register.pc = addr;
-        log.ops(`${type} ${addr.toString(16)}`);
     }
 
     /**
@@ -3274,9 +3278,7 @@ class OpCodes {
      * (sp-2)<-C; (sp-1)<-B; sp <- sp - 2
      */
     public 0xc5 = () => {
-        let sp = this.state.register.sp;
-        this.state.memory.set16(sp - 2, this.state.register.bc);
-        this.state.register.sp -= 2;
+        this.push(this.state.register.bc);
         this.state.register.pc += 1;
         log.ops(`PUSH B`);
     }
@@ -3292,18 +3294,6 @@ class OpCodes {
         this.state.register.a = ans;
         this.state.register.pc += 2;
         log.ops(`ADI ${byte.toString(16)}`);
-    }
-
-    /**
-     * Call address contained in bytes 2 and 3
-     *
-     * @param {string} type
-     */
-    private rst(addr: number): void {
-        this.state.register.sp -= 2;
-        this.state.memory.set16(this.state.register.sp, this.state.register.pc + 1);
-        this.state.register.pc = addr;
-        log.ops(`RST ${addr.toString(16).padStart(2, "0")}`);
     }
 
     /**
@@ -3327,18 +3317,6 @@ class OpCodes {
 
     /**
      * Return to the address on the stack
-     *
-     * @param {string} type
-     */
-    private return(type: string) {
-        this.state.register.pc = this.state.memory.get16(this.state.register.sp);
-        this.state.register.sp += 2;
-        this.state.register.pc += 1;
-        log.ops(`${type} ${this.state.register.pc.toString(16)}`);
-    }
-
-    /**
-     * Return to the address on the stack
      * PC.lo <- (sp); PC.hi<-(sp+1); SP <- SP+2
      */
     public 0xc9 = () => {
@@ -3355,19 +3333,6 @@ class OpCodes {
             return;
         }
         this.jump("JZ");
-    }
-
-    /**
-     * Call address contained in bytes 2 and 3
-     *
-     * @param {string} type
-     */
-    private call(type: string): void {
-        this.state.register.sp -= 2;
-        let addr = this.state.memory.get16(this.state.register.pc + 1);
-        this.state.memory.set16(this.state.register.sp, this.state.register.pc + 2);
-        this.state.register.pc = addr;
-        log.ops(`${type} ${addr.toString(16)}`);
     }
 
     /**
@@ -3388,6 +3353,7 @@ class OpCodes {
     public 0xcd = () => {
         if (cpudiag) {
             if (this.state.memory.get16(this.state.register.pc + 1) == 0x05) {
+                log.ops(`CALL ${this.state.memory.get16(this.state.register.pc + 1)}`);
                 if (this.state.register.c === 0x09) {
                     let addr = this.state.register.de;
                     let chr = String.fromCharCode(this.state.memory.get(addr));
@@ -3398,14 +3364,19 @@ class OpCodes {
                     }
                     console.log(str);
                     this.state.ready = false;
+                    this.state.register.pc += 3;
                     return;
                 } else if (this.state.register.c === 0x02) {
                     console.log("print routine called");
                     this.state.ready = false;
+                    this.state.register.pc += 3;
                     return;
                 }
             } else if (this.state.memory.get16(this.state.register.pc + 1) === 0x00) {
+                log.ops(`CALL ${this.state.memory.get16(this.state.register.pc + 1)}`);
                 this.state.ready = false;
+                console.log("other print routine called");
+                this.state.register.pc += 3;
                 return;
             }
         }
@@ -3448,8 +3419,7 @@ class OpCodes {
      * E <- (sp); D <- (sp+1); sp <- sp+2
      */
     public 0xd1 = () => {
-        this.state.register.de = this.state.memory.get16(this.state.register.sp);
-        this.state.register.sp += 2;
+        this.state.register.de = this.pop();
         this.state.register.pc += 1;
         log.ops(`POP D`);
     }
@@ -3496,9 +3466,7 @@ class OpCodes {
      * (sp-2)<-E; (sp-1)<-D; sp <- sp - 2
      */
     public 0xd5 = () => {
-        let sp = this.state.register.sp;
-        this.state.memory.set16(sp - 2, this.state.register.de);
-        this.state.register.sp -= 2;
+        this.push(this.state.register.de);
         this.state.register.pc += 1;
         log.ops(`PUSH D`);
     }
@@ -3609,8 +3577,7 @@ class OpCodes {
      * L <- (sp); H <- (sp+1); sp <- sp+2
      */
     public 0xe1 = () => {
-        this.state.register.hl = this.state.memory.get16(this.state.register.sp);
-        this.state.register.sp += 2;
+        this.state.register.hl = this.pop();
         this.state.register.pc += 1;
         log.ops(`POP H`);
     }
@@ -3635,6 +3602,8 @@ class OpCodes {
         this.state.register.hl = this.state.memory.get16(this.state.register.sp);
         this.state.memory.set16(this.state.register.sp, hl);
         this.state.register.pc += 1;
+        this.pop();
+        this.push(hl);
         log.ops(`XTHL`);
     }
 
@@ -3654,9 +3623,7 @@ class OpCodes {
      * (sp-2)<-L; (sp-1)<-H; sp <- sp - 2
      */
     public 0xe5 = () => {
-        let sp = this.state.register.sp;
-        this.state.memory.set16(sp - 2, this.state.register.hl);
-        this.state.register.sp -= 2;
+        this.push(this.state.register.hl);
         this.state.register.pc += 1;
         log.ops(`PUSH H`);
     }
@@ -3698,7 +3665,6 @@ class OpCodes {
      */
     public 0xe9 = () => {
         this.state.register.pc = this.state.register.hl;
-        // this.state.register.pc += 1;
         log.ops(`PCHL`);
     }
 
@@ -3771,8 +3737,7 @@ class OpCodes {
      * flags <- (sp); A <- (sp+1); sp <- sp+2
      */
     public 0xf1 = () => {
-        this.state.register.psw = this.state.memory.get16(this.state.register.sp);
-        this.state.register.sp += 2;
+        this.state.register.psw = this.pop();
         this.state.register.pc += 1;
         log.ops(`POP H`);
     }
@@ -3814,9 +3779,7 @@ class OpCodes {
      * (sp-2)<-flags; (sp-1)<-A; sp <- sp - 2
      */
     public 0xf5 = () => {
-        let sp = this.state.register.sp;
-        this.state.memory.set16(sp - 2, this.state.register.psw);
-        this.state.register.sp -= 2;
+        this.push(this.state.register.psw);
         this.state.register.pc += 1;
         log.ops(`PUSH PSW`);
     }
@@ -3912,6 +3875,69 @@ class OpCodes {
      */
     public 0xff = () => {
         this.rst(0x38);
+    }
+
+    /**
+     * Call address contained in bytes 2 and 3
+     *
+     * @param {string} type
+     */
+    private call(type: string): void {
+        this.push(this.state.register.pc + 3);
+        this.state.register.pc = this.state.memory.get16(this.state.register.pc + 1);
+        log.ops(`${type} ${this.state.register.pc.toString(16)}`);
+    }
+
+    /**
+     * Jump to address contained in bytes 2 and 3
+     */
+    private jump(type: string): void {
+        let addr = this.state.memory.get16(this.state.register.pc + 1);
+        this.state.register.pc = addr;
+        log.ops(`${type} ${addr.toString(16)}`);
+    }
+
+    /**
+     * Pop a value off the stack
+     */
+    private pop(): number {
+        let val = this.state.memory.get16(this.state.register.sp);
+        this.state.register.sp += 2;
+        this.state.stack.pop();
+        return val;
+    }
+
+    /**
+     * Push a value onto the stack
+     *
+     * @param {number} val Value to store
+     */
+    private push(val: number): void {
+        this.state.register.sp -= 2;
+        this.state.memory.set16(this.state.register.sp, val);
+        this.state.stack.push(val.toString(16).padStart(4, "0"));
+    }
+
+    /**
+     * Return to the address on the stack
+     *
+     * @param {string} type
+     */
+    private return(type: string): void {
+        this.state.register.pc = this.pop();
+        // this.state.register.pc += 1;
+        log.ops(`${type} ${this.state.register.pc.toString(16)}`);
+    }
+
+    /**
+     * Call address contained in bytes 2 and 3
+     *
+     * @param {string} type
+     */
+    private rst(addr: number): void {
+        this.push(this.state.register.pc);
+        this.state.register.pc = addr;
+        log.ops(`RST ${addr.toString(16).padStart(2, "0")}`);
     }
 
     /**
