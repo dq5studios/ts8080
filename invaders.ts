@@ -158,7 +158,7 @@ class Logger {
 }
 
 
-let invaders: State8080;
+let invaders: SpaceInvaders;
 let logging_enabled = false;
 let log: Logger = new Logger();
 let pc_buffer: string[] = [];
@@ -741,12 +741,16 @@ class Memory {
 /**
  * IO port of 8080
  */
-class IO8080 {}
+class IO8080 {
+    [index: number]: number;
+}
 
 /**
  * IO ports for Space Invaders machine
  */
 class SpaceInvadersIO extends IO8080 {
+    [index: number]: number;
+
     private alpha = [
         "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V",
         "W", "X", "Y", "Z", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "<", ">", " "
@@ -766,75 +770,75 @@ class SpaceInvadersIO extends IO8080 {
         this.port[3] = 0b00000000;
     }
 
-    public downCredit() {
+    public downCredit(): void {
         this.port[1] |= 0b00000001;
     }
 
-    public upCredit() {
+    public upCredit(): void {
         this.port[1] &= 0b11111110;
     }
 
-    public downP2Start() {
+    public downP2Start(): void {
         this.port[1] |= 0b00000010;
     }
 
-    public upP2Start() {
+    public upP2Start(): void {
         this.port[1] &= 0b11111101;
     }
 
-    public downP1Start() {
+    public downP1Start(): void {
         this.port[1] |= 0b00000100;
     }
 
-    public upP1Start() {
+    public upP1Start(): void {
         this.port[1] &= 0b11111011;
     }
 
-    public downP1Shot() {
+    public downP1Shot(): void {
         this.port[1] |= 0b00010000;
     }
 
-    public upP1Shot() {
+    public upP1Shot(): void {
         this.port[1] &= 0b11101111;
     }
 
-    public downP1Left() {
+    public downP1Left(): void {
         this.port[1] |= 0b00100000;
     }
 
-    public upP1Left() {
+    public upP1Left(): void {
         this.port[1] &= 0b11011111;
     }
 
-    public downP1Right() {
+    public downP1Right(): void {
         this.port[1] |= 0b01000000;
     }
 
-    public upP1Right() {
+    public upP1Right(): void {
         this.port[1] &= 0b10111111;
     }
 
-    public downP2Shot() {
+    public downP2Shot(): void {
         this.port[2] |= 0b00010000;
     }
 
-    public upP2Shot() {
+    public upP2Shot(): void {
         this.port[2] &= 0b11101111;
     }
 
-    public downP2Left() {
+    public downP2Left(): void {
         this.port[2] |= 0b00100000;
     }
 
-    public upP2Left() {
+    public upP2Left(): void {
         this.port[2] &= 0b11011111;
     }
 
-    public downP2Right() {
+    public downP2Right(): void {
         this.port[2] |= 0b01000000;
     }
 
-    public upP2Right() {
+    public upP2Right(): void {
         this.port[2] &= 0b10111111;
     }
 
@@ -1284,6 +1288,8 @@ class SpaceInvaders extends State8080 {
  * Execute requested 8080 opcode
  */
 class OpCodes {
+    [index: number]: Function;
+
     private state: State8080; // Which 8080 are we operating on
     public cycle = [
         4, 10, 7, 5, 5, 5, 7, 4, 4, 10, 7, 5, 5, 5, 7, 4,             // 0x00
