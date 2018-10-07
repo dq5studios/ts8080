@@ -1,9 +1,9 @@
+*.js
+*.js.map
 invaders
 invaders.h
 invaders.g
 invaders.f
 invaders.e
-invaders.js
-invaders.js.map
 8080EXM.COM
 cpudiag.bin
