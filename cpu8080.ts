@@ -43,10 +43,6 @@ export class State8080 {
         //     this.memory.set(0x59d, 0xc2);
         //     this.memory.set(0x59e, 0x05);
         //     this.memory.set16(0x06, 0x1400);
-        // } else {
-        //     this.register.pc = 0;
-        //     this.register.sp = 0x2400;
-        //     // this.memory.set(0x026a, 0x6e);
         // }
         this.ready = true;
         console.log("Ready");

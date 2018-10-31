@@ -5,12 +5,11 @@
 // lo.hi => 21.43 == 0x4321
 //
 
-import { State8080, Memory, IO8080 } from "./cpu8080.js";
+import { State8080, IO8080 } from "cpu8080";
 
 let invaders: SpaceInvaders;
 // let log: Logger = new Logger();
 // let pc_buffer: string[] = [];
-let cpudiag = false;
 
 /**
  * Load rom into memory
@@ -318,7 +317,9 @@ class SpaceInvaders extends State8080 {
     public init() {
         super.init();
         this.io = new SpaceInvadersIO();
+        this.register.pc = 0;
         this.register.sp = 0x00;
+        // this.register.sp = 0x2400;
         this.setupScreen();
         console.log("Ready machine");
     }
