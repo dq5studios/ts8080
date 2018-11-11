@@ -5,7 +5,7 @@
 // lo.hi => 21.43 == 0x4321
 //
 
-import { State8080, IO8080 } from "cpu8080";
+import { State8080, IO8080 } from "./cpu8080.js";
 
 let invaders: SpaceInvaders;
 // let log: Logger = new Logger();
@@ -32,14 +32,14 @@ function loadRom(): void {
     if (pause_btn) {
         pause_btn.addEventListener("click", (e) => { e.preventDefault(); invaders.pause(); });
     }
-    let step_btn = document.getElementById("step");
-    if (step_btn) {
-        step_btn.addEventListener("click", (e) => { e.preventDefault(); invaders.step(); });
-    }
-    let cov_btn = document.getElementById("coverage");
-    if (cov_btn) {
-        cov_btn.addEventListener("click", (e) => { e.preventDefault(); log.coverage(); });
-    }
+    // let step_btn = document.getElementById("step");
+    // if (step_btn) {
+    //     step_btn.addEventListener("click", (e) => { e.preventDefault(); invaders.step(); });
+    // }
+    // let cov_btn = document.getElementById("coverage");
+    // if (cov_btn) {
+    //     cov_btn.addEventListener("click", (e) => { e.preventDefault(); log.coverage(); });
+    // }
     window.addEventListener("keydown", keydownDispatch);
     window.addEventListener("keyup", keyupDispatch);
 }
@@ -260,7 +260,9 @@ class SpaceInvadersIO extends IO8080 {
      * bit 6= NC (not wired)
      * bit 7= NC (not wired)
      */
-    public set 0x03(v: number) {}
+    public set 0x03(v: number) {
+        // console.log(`Play sound #${v}`);
+    }
 
     /**
      * Shift data
@@ -282,7 +284,9 @@ class SpaceInvadersIO extends IO8080 {
      * bit 6= NC (not wired)
      * bit 7= NC (not wired)
      */
-    public set 0x05(v: number) {}
+    public set 0x05(v: number) {
+        // console.log(`Play sound #${v}`);
+    }
 
     /**
      * Write to watchdog
@@ -352,7 +356,7 @@ class SpaceInvaders extends State8080 {
         if (!screen) {
             return;
         }
-        this.screen  = screen.getContext("2d", { alpha: false })!;
+        this.screen = screen.getContext("2d", { alpha: false })!;
     }
 
     public drawScreen() {

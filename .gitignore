@@ -7,3 +7,8 @@ invaders.f
 invaders.e
 8080EXM.COM
 cpudiag.bin
+node_modules/
+assembly/
+build/
+package.json
+package-lock.json

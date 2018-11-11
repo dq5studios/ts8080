@@ -1,6 +1,6 @@
-import { Logger } from "./logger.js";
+// import { Logger } from "./logger.js";
 
-let log: Logger = new Logger();
+// let log: Logger = new Logger();
 
 /**
  * 8080 CPU
@@ -17,7 +17,7 @@ export class State8080 {
     public io!: IO8080;
     public time: number = 0;
     public stack: string[] = [];
-    public log: Logger = new Logger();
+    // public log: Logger = new Logger();
 
     /**
      * Creates an instance of State8080
@@ -63,8 +63,8 @@ export class State8080 {
             return;
         }
         try {
-            this.time = Date.now();
             // this.time = performance.now();
+            this.time = Date.now();
             this.cycle();
         } catch (err) {
             console.log(err);
@@ -73,84 +73,27 @@ export class State8080 {
     }
 
     /**
-     * Step the processor one instruction
+     * Execute the number of cycles that should've ran since the last mark
      */
-    public step(): void {
-        let steps = 1;
-        let step_inp = <HTMLInputElement>document.getElementById("step_cnt");
-        if (step_inp) {
-            steps = Number.parseInt(step_inp.value);
-        }
-        try {
-            this.exec(1, steps);
-        } catch (err) {
-            console.log(err);
-            throw "Step failed";
-        }
-    }
-
-    private exec(cur_step: number = 1, steps: number = 1): void {
-        for (let j = 0; j < 1; j++) {
-            if (this.int && this.active_int > 0x00) {
-                this.int = false;
-                log.step(this.register.pc);
-                this.register.pc -= 2;
-                this.ops[this.active_int]();
-                this.active_int = 0x00;
-            }
-            log.step(this.register.pc);
-            let opcode = this.memory.get(this.register.pc);
-            if (this.register.pc == 0x1a65) {
-                opcode = 0xca;
-            }
-            if (typeof this.ops[opcode] === "undefined") {
-                let addr = this.register.pc;
-                let opcode = this.memory.get(addr).toString(16).padStart(2, "0");
-                log.ops(`Could not execute opcode ${opcode} at ${addr.toString(16).padStart(4, "0")}`, true);
-                throw "Unimplemented OpCode";
-            }
-            this.ops[opcode]();
-            this.cycles += this.ops.cycle[opcode];
-            if ([0x0ade, 0x1956, 0x191a].indexOf(this.register.pc) > -1) {
-                throw "Breakpoint"
-            }
-        }
-        if (this.ready && cur_step < steps) {
-            // new Promise(resolve => setTimeout(resolve)).then(() => { cur_step++; this.exec(cur_step, steps); });
-            setTimeout(() => { cur_step++; this.exec(cur_step, steps); });
-        }
-    }
-
     public cycle() {
         // this.cycles += (performance.now() - this.time) * 2000;
         this.cycles += (Date.now() - this.time) * 2000;
+        // this.time = performance.now();
         this.time = Date.now();
+        console.log(this.cycles);
         while (this.cycles > 0) {
             if (!this.ready) {
                 return;
             }
-            // if ([0x026e /*0x0248*/].indexOf(this.register.pc) > -1) {
-            //     invaders.pause();
-            //     throw "Breakpoint"
-            // }
             if (this.int && this.active_int > 0x00) {
                 this.int = false;
-                // this.register.pc -= 2;
                 this.ops[this.active_int]();
                 this.active_int = 0x00;
             }
-            log.step(this.register.pc);
             let opcode = this.memory.get(this.register.pc);
-            // if (logging_enabled && pc_buffer.push(`pc: ${this.register.pc.toString(16)}; hl: ${this.register.hl.toString(16)}; de: ${this.register.de.toString(16)}; bc: ${this.register.bc.toString(8)}; a: ${this.register.psw.toString(8)}`) > 20) {
-            //     pc_buffer.shift();
-            // }
-            // if (pc_buffer.push(this.register.pc.toString(16)) > 20) {
-            //     pc_buffer.shift();
-            // }
             if (typeof this.ops[opcode] === "undefined") {
                 let addr = this.register.pc;
                 let opcode = this.memory.get(addr).toString(16).padStart(2, "0");
-                log.ops(`Could not execute opcode ${opcode} at ${addr.toString(16).padStart(4, "0")}`, true);
                 throw `Unimplemented OpCode ${opcode} at ${addr.toString(16).padStart(4, "0")}`;
             }
             // Opcode JMP 0xad7 (C3 D7 0A) is a delay loop
@@ -162,7 +105,7 @@ export class State8080 {
                     // A register contains how many cycles to wait
                     let len = this.register.a / 0x40;
                     console.log(`delay for ${len} seconds`);
-                    setTimeout(() => { this.time = Date.now(); this.cycle(); }, 1000 * len);
+                    setTimeout(() => { this.time = Date.now(); /*this.time = performance.now();*/ this.cycle(); }, 1000 * len);
                     return;
                 }
             }
@@ -174,7 +117,7 @@ export class State8080 {
             }
             this.cycles -= this.ops.cycle[opcode];
         }
-        setTimeout(() => { this.cycle(); }, 1);
+        setTimeout(() => { this.cycle(); });
     }
 }
 
@@ -257,7 +200,7 @@ export class ConditionCodes {
         } else {
             this.state.register.f &= 0b10111111;
         }
-        log.reg("z", v);
+        // log.reg("z", v);
     }
 
     /**
@@ -276,7 +219,7 @@ export class ConditionCodes {
         } else {
             this.state.register.f &= 0b01111111;
         }
-        log.reg("s", v);
+        // log.reg("s", v);
     }
 
     /**
@@ -295,7 +238,7 @@ export class ConditionCodes {
         } else {
             this.state.register.f &= 0b11111011;
         }
-        log.reg("p", v);
+        // log.reg("p", v);
     }
 
     /**
@@ -314,7 +257,7 @@ export class ConditionCodes {
         } else {
             this.state.register.f &= 0b11111110;
         }
-        log.reg("cy", v);
+        // log.reg("cy", v);
     }
 
     /**
@@ -333,7 +276,7 @@ export class ConditionCodes {
         } else {
             this.state.register.f &= 0b11110111;
         }
-        log.reg("ac", v);
+        // log.reg("ac", v);
     }
 }
 
@@ -364,7 +307,7 @@ export class Registers {
      */
     public set pc(v : number) {
         this._pc = v & 0xffff;
-        log.reg("pc", this._pc);
+        // log.reg("pc", this._pc);
     }
 
     /**
@@ -379,7 +322,7 @@ export class Registers {
      */
     public set sp(v : number) {
         this._sp = v & 0xffff;
-        log.reg("sp", this._sp);
+        // log.reg("sp", this._sp);
     }
 
     /**
@@ -394,7 +337,7 @@ export class Registers {
      */
     public set a(v : number) {
         this._a = v & 0xff;
-        log.reg("a", this._a);
+        // log.reg("a", this._a);
     }
 
     /**
@@ -409,7 +352,7 @@ export class Registers {
      */
     public set f(v : number) {
         this._f = v & 0xff;
-        log.reg("f", this._f);
+        // log.reg("f", this._f);
     }
 
     /**
@@ -424,7 +367,7 @@ export class Registers {
      */
     public set b(v : number) {
         this._b = v & 0xff;
-        log.reg("b", this._b);
+        // log.reg("b", this._b);
     }
 
     /**
@@ -439,7 +382,7 @@ export class Registers {
      */
     public set c(v : number) {
         this._c = v & 0xff;
-        log.reg("c", this._c);
+        // log.reg("c", this._c);
     }
 
     /**
@@ -454,7 +397,7 @@ export class Registers {
      */
     public set d(v : number) {
         this._d = v & 0xff;
-        log.reg("d", this._d);
+        // log.reg("d", this._d);
     }
 
     /**
@@ -469,7 +412,7 @@ export class Registers {
      */
     public set e(v : number) {
         this._e = v & 0xff;
-        log.reg("e", this._e);
+        // log.reg("e", this._e);
     }
 
     /**
@@ -484,7 +427,7 @@ export class Registers {
      */
     public set h(v : number) {
         this._h = v & 0xff;
-        log.reg("h", this._h);
+        // log.reg("h", this._h);
     }
 
     /**
@@ -499,7 +442,7 @@ export class Registers {
      */
     public set l(v : number) {
         this._l = v & 0xff;
-        log.reg("l", this._l);
+        // log.reg("l", this._l);
     }
 
     /**
@@ -588,7 +531,7 @@ export class Memory {
     constructor(buffer: ArrayBuffer) {
         let tmp = ArrayBuffer.transfer(buffer, 0x4000);
         this.memory = new DataView(tmp);
-        log.drawMemory(this.memory);
+        // log.drawMemory(this.memory);
     }
 
     /**
@@ -641,7 +584,7 @@ export class Memory {
             return;
         }
         this.memory.setUint8(addr, value);
-        log.updateMemory(addr, value);
+        // log.updateMemory(addr, value);
     }
 
     /**
@@ -667,7 +610,7 @@ export class Memory {
             console.log(addr.toString(16).padStart(4, "0"), value.toString(16).padStart(4, "0"), e);
             throw e;
         }
-        log.updateMemory(addr, value);
+        // log.updateMemory(addr, value);
     }
 }
 
@@ -713,7 +656,7 @@ export class OpCodes {
      * No Op
      */
     public 0x00 = () => {
-        log.ops(`NOP`);
+        // log.ops(`NOP`);
         this.state.register.pc += 1;
     }
     public 0x08 = this[0x00];
@@ -730,7 +673,7 @@ export class OpCodes {
     public 0x01 = () => {
         this.state.register.c = this.state.memory.get(this.state.register.pc + 1);
         this.state.register.b = this.state.memory.get(this.state.register.pc + 2);
-        log.ops(`LXI B ${this.state.register.b.toString(16).padStart(2, "0")}${this.state.register.c.toString(16).padStart(2, "0")}`);
+        // log.ops(`LXI B ${this.state.register.b.toString(16).padStart(2, "0")}${this.state.register.c.toString(16).padStart(2, "0")}`);
         this.state.register.pc += 3;
     }
 
@@ -740,7 +683,7 @@ export class OpCodes {
     public 0x02 = () => {
         let addr = this.state.register.bc;
         this.state.memory.set(addr, this.state.register.a);
-        log.ops(`STAX B (${addr.toString(16)})`);
+        // log.ops(`STAX B (${addr.toString(16)})`);
         this.state.register.pc += 1;
     }
 
@@ -749,7 +692,7 @@ export class OpCodes {
      */
     public 0x03 = () => {
         this.state.register.bc++;
-        log.ops(`INX B`);
+        // log.ops(`INX B`);
         this.state.register.pc += 1;
     }
 
@@ -758,7 +701,7 @@ export class OpCodes {
      */
     public 0x04 = () => {
         this.state.cc.setSZP(++this.state.register.b);
-        log.ops(`INR B`);
+        // log.ops(`INR B`);
         this.state.register.pc += 1;
     }
 
@@ -767,7 +710,7 @@ export class OpCodes {
      */
     public 0x05 = () => {
         this.state.cc.setSZP(--this.state.register.b);
-        log.ops(`DCR B`);
+        // log.ops(`DCR B`);
         this.state.register.pc += 1;
     }
 
@@ -777,7 +720,7 @@ export class OpCodes {
     public 0x06 = () => {
         let byte = this.state.memory.get(this.state.register.pc + 1);
         this.state.register.b = byte;
-        log.ops(`MVI B ${byte.toString(16)}`);
+        // log.ops(`MVI B ${byte.toString(16)}`);
         this.state.register.pc += 2;
     }
 
@@ -788,7 +731,7 @@ export class OpCodes {
         let cy = this.state.register.a & 0x80;
         this.state.register.a = this.state.register.a << 1 | cy >> 7;
         this.state.cc.cy = Number(cy == 0x80);
-        log.ops(`RLC`);
+        // log.ops(`RLC`);
         this.state.register.pc += 1;
     }
 
@@ -799,7 +742,7 @@ export class OpCodes {
         let ans = this.state.register.hl + this.state.register.bc;
         this.state.cc.carry(ans);
         this.state.register.hl = ans;
-        log.ops(`DAD B`);
+        // log.ops(`DAD B`);
         this.state.register.pc += 1;
     }
 
@@ -809,7 +752,7 @@ export class OpCodes {
     public 0x0a = () => {
         let addr = this.state.register.bc;
         this.state.register.a = this.state.memory.get(addr);
-        log.ops(`LDAX B (${addr.toString(16)})`);
+        // log.ops(`LDAX B (${addr.toString(16)})`);
         this.state.register.pc += 1;
     }
 
@@ -818,7 +761,7 @@ export class OpCodes {
      */
     public 0x0b = () => {
         this.state.register.bc--;
-        log.ops(`DCX B`);
+        // log.ops(`DCX B`);
         this.state.register.pc += 1;
     }
 
@@ -827,7 +770,7 @@ export class OpCodes {
      */
     public 0x0c = () => {
         this.state.cc.setSZP(++this.state.register.c);
-        log.ops(`INR C`);
+        // log.ops(`INR C`);
         this.state.register.pc += 1;
     }
 
@@ -836,7 +779,7 @@ export class OpCodes {
      */
     public 0x0d = () => {
         this.state.cc.setSZP(--this.state.register.c);
-        log.ops(`DCR C`);
+        // log.ops(`DCR C`);
         this.state.register.pc += 1;
     }
 
@@ -846,7 +789,7 @@ export class OpCodes {
     public 0x0e = () => {
         let byte = this.state.memory.get(this.state.register.pc + 1);
         this.state.register.c = byte;
-        log.ops(`MVI C ${byte.toString(16)}`);
+        // log.ops(`MVI C ${byte.toString(16)}`);
         this.state.register.pc += 2;
     }
 
@@ -857,7 +800,7 @@ export class OpCodes {
         let a = this.state.register.a;
         this.state.register.a = ((a & 1) << 7) | (a >> 1);
         this.state.cc.cy = Number(1 == (a & 1));
-        log.ops(`RRC`);
+        // log.ops(`RRC`);
         this.state.register.pc += 1;
     }
 
@@ -867,7 +810,7 @@ export class OpCodes {
     public 0x11 = () => {
         this.state.register.e = this.state.memory.get(this.state.register.pc + 1);
         this.state.register.d = this.state.memory.get(this.state.register.pc + 2);
-        log.ops(`LXI D ${this.state.register.de.toString(16).padStart(4, "0")}`);
+        // log.ops(`LXI D ${this.state.register.de.toString(16).padStart(4, "0")}`);
         this.state.register.pc += 3;
     }
 
@@ -877,7 +820,7 @@ export class OpCodes {
     public 0x12 = () => {
         let addr = this.state.register.de;
         this.state.memory.set(addr, this.state.register.a);
-        log.ops(`STAX D (${addr.toString(16)})`);
+        // log.ops(`STAX D (${addr.toString(16)})`);
         this.state.register.pc += 1;
     }
 
@@ -886,7 +829,7 @@ export class OpCodes {
      */
     public 0x13 = () => {
         this.state.register.de++;
-        log.ops(`INX D`);
+        // log.ops(`INX D`);
         this.state.register.pc += 1;
     }
 
@@ -895,7 +838,7 @@ export class OpCodes {
      */
     public 0x14 = () => {
         this.state.cc.setSZP(++this.state.register.d);
-        log.ops(`INR D`);
+        // log.ops(`INR D`);
         this.state.register.pc += 1;
     }
 
@@ -904,7 +847,7 @@ export class OpCodes {
      */
     public 0x15 = () => {
         this.state.cc.setSZP(--this.state.register.d);
-        log.ops(`DCR D`);
+        // log.ops(`DCR D`);
         this.state.register.pc += 1;
     }
 
@@ -914,7 +857,7 @@ export class OpCodes {
     public 0x16 = () => {
         let byte = this.state.memory.get(this.state.register.pc + 1);
         this.state.register.d = byte;
-        log.ops(`MVI D ${byte.toString(16)}`);
+        // log.ops(`MVI D ${byte.toString(16)}`);
         this.state.register.pc += 2;
     }
 
@@ -925,7 +868,7 @@ export class OpCodes {
         let cy = this.state.register.a & 0x80;
         this.state.register.a = this.state.register.a << 1 | this.state.cc.cy;
         this.state.cc.cy = cy;
-        log.ops(`RAL`);
+        // log.ops(`RAL`);
         this.state.register.pc += 1;
     }
 
@@ -936,7 +879,7 @@ export class OpCodes {
         let ans = this.state.register.hl + this.state.register.de;
         this.state.cc.carry(ans);
         this.state.register.hl = ans;
-        log.ops(`DAD D`);
+        // log.ops(`DAD D`);
         this.state.register.pc += 1;
     }
 
@@ -946,7 +889,7 @@ export class OpCodes {
     public 0x1a = () => {
         let addr = this.state.register.de;
         this.state.register.a = this.state.memory.get(addr);
-        log.ops(`LDAX D (${addr.toString(16)})`);
+        // log.ops(`LDAX D (${addr.toString(16)})`);
         this.state.register.pc += 1;
     }
 
@@ -955,7 +898,7 @@ export class OpCodes {
      */
     public 0x1b = () => {
         this.state.register.de--;
-        log.ops(`DCX D`);
+        // log.ops(`DCX D`);
         this.state.register.pc += 1;
     }
 
@@ -964,7 +907,7 @@ export class OpCodes {
      */
     public 0x1c = () => {
         this.state.cc.setSZP(++this.state.register.e);
-        log.ops(`INR E`);
+        // log.ops(`INR E`);
         this.state.register.pc += 1;
     }
 
@@ -973,7 +916,7 @@ export class OpCodes {
      */
     public 0x1d = () => {
         this.state.cc.setSZP(--this.state.register.e);
-        log.ops(`DCR E`);
+        // log.ops(`DCR E`);
         this.state.register.pc += 1;
     }
 
@@ -983,7 +926,7 @@ export class OpCodes {
     public 0x1e = () => {
         let byte = this.state.memory.get(this.state.register.pc + 1);
         this.state.register.e = byte;
-        log.ops(`MVI E ${byte.toString(16)}`);
+        // log.ops(`MVI E ${byte.toString(16)}`);
         this.state.register.pc += 2;
     }
 
@@ -991,7 +934,7 @@ export class OpCodes {
         let a = this.state.register.a;
         this.state.register.a = (this.state.cc.cy << 7) | (a >> 1);
         this.state.cc.cy = Number(1 == (a & 1));
-        log.ops(`RAR`);
+        // log.ops(`RAR`);
         this.state.register.pc += 1;
     }
 
@@ -1001,7 +944,7 @@ export class OpCodes {
     public 0x21 = () => {
         this.state.register.l = this.state.memory.get(this.state.register.pc + 1);
         this.state.register.h = this.state.memory.get(this.state.register.pc + 2);
-        log.ops(`LXI H ${this.state.register.hl.toString(16).padStart(4, "0")}`);
+        // log.ops(`LXI H ${this.state.register.hl.toString(16).padStart(4, "0")}`);
         this.state.register.pc += 3;
     }
 
@@ -1011,7 +954,7 @@ export class OpCodes {
     public 0x22 = () => {
         let addr = this.state.memory.get16(this.state.register.pc + 1);
         this.state.memory.set16(addr, this.state.register.hl);
-        log.ops(`SHLD ${addr.toString(16).padStart(4, "0")}`);
+        // log.ops(`SHLD ${addr.toString(16).padStart(4, "0")}`);
         this.state.register.pc += 3;
     }
 
@@ -1020,7 +963,7 @@ export class OpCodes {
      */
     public 0x23 = () => {
         this.state.register.hl++;
-        log.ops(`INX H`);
+        // log.ops(`INX H`);
         this.state.register.pc += 1;
     }
 
@@ -1029,7 +972,7 @@ export class OpCodes {
      */
     public 0x24 = () => {
         this.state.cc.setSZP(++this.state.register.h);
-        log.ops(`INR H`);
+        // log.ops(`INR H`);
         this.state.register.pc += 1;
     }
 
@@ -1038,7 +981,7 @@ export class OpCodes {
      */
     public 0x25 = () => {
         this.state.cc.setSZP(--this.state.register.h);
-        log.ops(`DCR H`);
+        // log.ops(`DCR H`);
         this.state.register.pc += 1;
     }
 
@@ -1048,7 +991,7 @@ export class OpCodes {
     public 0x26 = () => {
         let byte = this.state.memory.get(this.state.register.pc + 1);
         this.state.register.h = byte;
-        log.ops(`MVI H ${byte.toString(16)}`);
+        // log.ops(`MVI H ${byte.toString(16)}`);
         this.state.register.pc += 2;
     }
 
@@ -1066,7 +1009,7 @@ export class OpCodes {
             this.state.register.a = ans;
         }
         this.state.cc.setSZP(this.state.register.a);
-        log.ops(`DAA`);
+        // log.ops(`DAA`);
         this.state.register.pc += 1;
     }
 
@@ -1077,7 +1020,7 @@ export class OpCodes {
         let ans = this.state.register.hl + this.state.register.hl;
         this.state.cc.carry(ans);
         this.state.register.hl = ans;
-        log.ops(`DAD H`);
+        // log.ops(`DAD H`);
         this.state.register.pc += 1;
     }
 
@@ -1087,7 +1030,7 @@ export class OpCodes {
     public 0x2a = () => {
         let addr = this.state.memory.get16(this.state.register.pc + 1);
         this.state.register.hl = this.state.memory.get16(addr);
-        log.ops(`LHLD ${addr.toString(16).padStart(4, "0")}`);
+        // log.ops(`LHLD ${addr.toString(16).padStart(4, "0")}`);
         this.state.register.pc += 3;
     }
 
@@ -1096,7 +1039,7 @@ export class OpCodes {
      */
     public 0x2b = () => {
         this.state.register.hl--;
-        log.ops(`DCX H`);
+        // log.ops(`DCX H`);
         this.state.register.pc += 1;
     }
 
@@ -1105,7 +1048,7 @@ export class OpCodes {
      */
     public 0x2c = () => {
         this.state.cc.setSZP(++this.state.register.l);
-        log.ops(`INR L`);
+        // log.ops(`INR L`);
         this.state.register.pc += 1;
     }
 
@@ -1114,7 +1057,7 @@ export class OpCodes {
      */
     public 0x2d = () => {
         this.state.cc.setSZP(--this.state.register.l);
-        log.ops(`DCR L`);
+        // log.ops(`DCR L`);
         this.state.register.pc += 1;
     }
 
@@ -1124,7 +1067,7 @@ export class OpCodes {
     public 0x2e = () => {
         let byte = this.state.memory.get(this.state.register.pc + 1);
         this.state.register.l = byte;
-        log.ops(`MVI L ${byte.toString(16)}`);
+        // log.ops(`MVI L ${byte.toString(16)}`);
         this.state.register.pc += 2;
     }
 
@@ -1133,7 +1076,7 @@ export class OpCodes {
      */
     public 0x2f = () => {
         this.state.register.a = ~this.state.register.a;
-        log.ops(`CMA`);
+        // log.ops(`CMA`);
         this.state.register.pc += 1;
     }
 
@@ -1143,7 +1086,7 @@ export class OpCodes {
     public 0x31 = () => {
         let sp = this.state.memory.get16(this.state.register.pc + 1);
         this.state.register.sp = sp;
-        log.ops(`LXI SP ${sp.toString(16)}`);
+        // log.ops(`LXI SP ${sp.toString(16)}`);
         this.state.register.pc += 3;
     }
 
@@ -1153,7 +1096,7 @@ export class OpCodes {
     public 0x32 = () => {
         let addr = this.state.memory.get16(this.state.register.pc + 1);
         this.state.memory.set(addr, this.state.register.a);
-        log.ops(`STA ${addr.toString(16).padStart(4, "0")}`);
+        // log.ops(`STA ${addr.toString(16).padStart(4, "0")}`);
         this.state.register.pc += 3;
     }
 
@@ -1162,7 +1105,7 @@ export class OpCodes {
      */
     public 0x33 = () => {
         this.state.register.sp++;
-        log.ops(`INX SP`);
+        // log.ops(`INX SP`);
         this.state.register.pc += 1;
     }
 
@@ -1174,7 +1117,7 @@ export class OpCodes {
         let ans = m + 1;
         this.state.cc.setSZP(ans);
         this.state.memory.set(this.state.register.hl, ans);
-        log.ops(`INR M`);
+        // log.ops(`INR M`);
         this.state.register.pc += 1;
     }
 
@@ -1186,7 +1129,7 @@ export class OpCodes {
         let ans = m - 1;
         this.state.cc.setSZP(ans);
         this.state.memory.set(this.state.register.hl, ans);
-        log.ops(`DCR M`);
+        // log.ops(`DCR M`);
         this.state.register.pc += 1;
     }
 
@@ -1196,7 +1139,7 @@ export class OpCodes {
     public 0x36 = () => {
         let byte = this.state.memory.get(this.state.register.pc + 1);
         this.state.memory.set(this.state.register.hl, byte);
-        log.ops(`MVI M ${byte.toString(16)}`);
+        // log.ops(`MVI M ${byte.toString(16)}`);
         this.state.register.pc += 2;
     }
 
@@ -1205,7 +1148,7 @@ export class OpCodes {
      */
     public 0x37 = () => {
         this.state.cc.cy = 1;
-        log.ops(`STC`);
+        // log.ops(`STC`);
         this.state.register.pc += 1;
     }
 
@@ -1216,7 +1159,7 @@ export class OpCodes {
         let ans = this.state.register.hl + this.state.register.sp;
         this.state.cc.carry16(ans);
         this.state.register.hl = ans;
-        log.ops(`DAD SP`);
+        // log.ops(`DAD SP`);
         this.state.register.pc += 1;
     }
 
@@ -1226,7 +1169,7 @@ export class OpCodes {
     public 0x3a = () => {
         let addr = this.state.memory.get16(this.state.register.pc + 1);
         this.state.register.a = this.state.memory.get(addr);
-        log.ops(`LDAX A ${addr.toString(16).padStart(4, "0")}`);
+        // log.ops(`LDAX A ${addr.toString(16).padStart(4, "0")}`);
         this.state.register.pc += 3;
     }
 
@@ -1235,7 +1178,7 @@ export class OpCodes {
      */
     public 0x3b = () => {
         this.state.register.sp--;
-        log.ops(`DCX SP`);
+        // log.ops(`DCX SP`);
         this.state.register.pc += 1;
     }
 
@@ -1244,7 +1187,7 @@ export class OpCodes {
      */
     public 0x3c = () => {
         this.state.cc.setSZP(++this.state.register.a);
-        log.ops(`INR A`);
+        // log.ops(`INR A`);
         this.state.register.pc += 1;
     }
 
@@ -1253,7 +1196,7 @@ export class OpCodes {
      */
     public 0x3d = () => {
         this.state.cc.setSZP(--this.state.register.a);
-        log.ops(`DCR A`);
+        // log.ops(`DCR A`);
         this.state.register.pc += 1;
     }
 
@@ -1263,7 +1206,7 @@ export class OpCodes {
     public 0x3e = () => {
         let byte = this.state.memory.get(this.state.register.pc + 1);
         this.state.register.a = byte;
-        log.ops(`MVI A ${byte.toString(16)}`);
+        // log.ops(`MVI A ${byte.toString(16)}`);
         this.state.register.pc += 2;
     }
 
@@ -1272,7 +1215,7 @@ export class OpCodes {
      */
     public 0x3f = () => {
         this.state.cc.cy = ~this.state.cc.cy & 0x01;
-        log.ops(`CMC`);
+        // log.ops(`CMC`);
         this.state.register.pc += 1;
     }
 
@@ -1281,7 +1224,7 @@ export class OpCodes {
      */
     public 0x40 = () => {
         this.state.register.b = this.state.register.b;
-        log.ops(`MOV B,B`);
+        // log.ops(`MOV B,B`);
         this.state.register.pc += 1;
     }
 
@@ -1290,7 +1233,7 @@ export class OpCodes {
      */
     public 0x41 = () => {
         this.state.register.b = this.state.register.c;
-        log.ops(`MOV B,C`);
+        // log.ops(`MOV B,C`);
         this.state.register.pc += 1;
     }
 
@@ -1299,7 +1242,7 @@ export class OpCodes {
      */
     public 0x42 = () => {
         this.state.register.b = this.state.register.d;
-        log.ops(`MOV B,D`);
+        // log.ops(`MOV B,D`);
         this.state.register.pc += 1;
     }
 
@@ -1308,7 +1251,7 @@ export class OpCodes {
      */
     public 0x43 = () => {
         this.state.register.b = this.state.register.e;
-        log.ops(`MOV B,E`);
+        // log.ops(`MOV B,E`);
         this.state.register.pc += 1;
     }
 
@@ -1317,7 +1260,7 @@ export class OpCodes {
      */
     public 0x44 = () => {
         this.state.register.b = this.state.register.h;
-        log.ops(`MOV B,H`);
+        // log.ops(`MOV B,H`);
         this.state.register.pc += 1;
     }
 
@@ -1326,7 +1269,7 @@ export class OpCodes {
      */
     public 0x45 = () => {
         this.state.register.b = this.state.register.l;
-        log.ops(`MOV B,L`);
+        // log.ops(`MOV B,L`);
         this.state.register.pc += 1;
     }
 
@@ -1336,7 +1279,7 @@ export class OpCodes {
     public 0x46 = () => {
         let addr = this.state.register.hl;
         this.state.register.b = this.state.memory.get(addr);
-        log.ops(`MOV B,M (${addr.toString(16)})`);
+        // log.ops(`MOV B,M (${addr.toString(16)})`);
         this.state.register.pc += 1;
     }
 
@@ -1345,7 +1288,7 @@ export class OpCodes {
      */
     public 0x47 = () => {
         this.state.register.b = this.state.register.a;
-        log.ops(`MOV B,A`);
+        // log.ops(`MOV B,A`);
         this.state.register.pc += 1;
     }
 
@@ -1354,7 +1297,7 @@ export class OpCodes {
      */
     public 0x48 = () => {
         this.state.register.c = this.state.register.b;
-        log.ops(`MOV C,B`);
+        // log.ops(`MOV C,B`);
         this.state.register.pc += 1;
     }
 
@@ -1363,7 +1306,7 @@ export class OpCodes {
      */
     public 0x49 = () => {
         this.state.register.c = this.state.register.c;
-        log.ops(`MOV C,C`);
+        // log.ops(`MOV C,C`);
         this.state.register.pc += 1;
     }
 
@@ -1372,7 +1315,7 @@ export class OpCodes {
      */
     public 0x4a = () => {
         this.state.register.c = this.state.register.d;
-        log.ops(`MOV C,D`);
+        // log.ops(`MOV C,D`);
         this.state.register.pc += 1;
     }
 
@@ -1381,7 +1324,7 @@ export class OpCodes {
      */
     public 0x4b = () => {
         this.state.register.c = this.state.register.e;
-        log.ops(`MOV C,E`);
+        // log.ops(`MOV C,E`);
         this.state.register.pc += 1;
     }
 
@@ -1390,7 +1333,7 @@ export class OpCodes {
      */
     public 0x4c = () => {
         this.state.register.c = this.state.register.h;
-        log.ops(`MOV C,H`);
+        // log.ops(`MOV C,H`);
         this.state.register.pc += 1;
     }
 
@@ -1399,7 +1342,7 @@ export class OpCodes {
      */
     public 0x4d = () => {
         this.state.register.c = this.state.register.l;
-        log.ops(`MOV C,L`);
+        // log.ops(`MOV C,L`);
         this.state.register.pc += 1;
     }
 
@@ -1409,7 +1352,7 @@ export class OpCodes {
     public 0x4e = () => {
         let addr = this.state.register.hl;
         this.state.register.c = this.state.memory.get(addr);
-        log.ops(`MOV C,M (${addr.toString(16)})`);
+        // log.ops(`MOV C,M (${addr.toString(16)})`);
         this.state.register.pc += 1;
     }
 
@@ -1418,7 +1361,7 @@ export class OpCodes {
      */
     public 0x4f = () => {
         this.state.register.c = this.state.register.a;
-        log.ops(`MOV C,A`);
+        // log.ops(`MOV C,A`);
         this.state.register.pc += 1;
     }
 
@@ -1427,7 +1370,7 @@ export class OpCodes {
      */
     public 0x50 = () => {
         this.state.register.d = this.state.register.b;
-        log.ops(`MOV D,B`);
+        // log.ops(`MOV D,B`);
         this.state.register.pc += 1;
     }
 
@@ -1436,7 +1379,7 @@ export class OpCodes {
      */
     public 0x51 = () => {
         this.state.register.d = this.state.register.c;
-        log.ops(`MOV D,C`);
+        // log.ops(`MOV D,C`);
         this.state.register.pc += 1;
     }
 
@@ -1445,7 +1388,7 @@ export class OpCodes {
      */
     public 0x52 = () => {
         this.state.register.d = this.state.register.d;
-        log.ops(`MOV D,D`);
+        // log.ops(`MOV D,D`);
         this.state.register.pc += 1;
     }
 
@@ -1454,7 +1397,7 @@ export class OpCodes {
      */
     public 0x53 = () => {
         this.state.register.d = this.state.register.e;
-        log.ops(`MOV D,E`);
+        // log.ops(`MOV D,E`);
         this.state.register.pc += 1;
     }
 
@@ -1463,7 +1406,7 @@ export class OpCodes {
      */
     public 0x54 = () => {
         this.state.register.d = this.state.register.h;
-        log.ops(`MOV D,H`);
+        // log.ops(`MOV D,H`);
         this.state.register.pc += 1;
     }
 
@@ -1472,7 +1415,7 @@ export class OpCodes {
      */
     public 0x55 = () => {
         this.state.register.d = this.state.register.l;
-        log.ops(`MOV D,L`);
+        // log.ops(`MOV D,L`);
         this.state.register.pc += 1;
     }
 
@@ -1482,7 +1425,7 @@ export class OpCodes {
     public 0x56 = () => {
         let addr = this.state.register.hl;
         this.state.register.d = this.state.memory.get(addr);
-        log.ops(`MOV D,M (${addr.toString(16)})`);
+        // log.ops(`MOV D,M (${addr.toString(16)})`);
         this.state.register.pc += 1;
     }
 
@@ -1491,7 +1434,7 @@ export class OpCodes {
      */
     public 0x57 = () => {
         this.state.register.d = this.state.register.a;
-        log.ops(`MOV D,A`);
+        // log.ops(`MOV D,A`);
         this.state.register.pc += 1;
     }
 
@@ -1500,7 +1443,7 @@ export class OpCodes {
      */
     public 0x58 = () => {
         this.state.register.e = this.state.register.b;
-        log.ops(`MOV E,B`);
+        // log.ops(`MOV E,B`);
         this.state.register.pc += 1;
     }
 
@@ -1509,7 +1452,7 @@ export class OpCodes {
      */
     public 0x59 = () => {
         this.state.register.e = this.state.register.c;
-        log.ops(`MOV E,C`);
+        // log.ops(`MOV E,C`);
         this.state.register.pc += 1;
     }
 
@@ -1518,7 +1461,7 @@ export class OpCodes {
      */
     public 0x5a = () => {
         this.state.register.e = this.state.register.d;
-        log.ops(`MOV E,D`);
+        // log.ops(`MOV E,D`);
         this.state.register.pc += 1;
     }
 
@@ -1527,7 +1470,7 @@ export class OpCodes {
      */
     public 0x5b = () => {
         this.state.register.e = this.state.register.e;
-        log.ops(`MOV E,E`);
+        // log.ops(`MOV E,E`);
         this.state.register.pc += 1;
     }
 
@@ -1536,7 +1479,7 @@ export class OpCodes {
      */
     public 0x5c = () => {
         this.state.register.e = this.state.register.h;
-        log.ops(`MOV E,H`);
+        // log.ops(`MOV E,H`);
         this.state.register.pc += 1;
     }
 
@@ -1545,7 +1488,7 @@ export class OpCodes {
      */
     public 0x5d = () => {
         this.state.register.e = this.state.register.l;
-        log.ops(`MOV E,L`);
+        // log.ops(`MOV E,L`);
         this.state.register.pc += 1;
     }
 
@@ -1555,7 +1498,7 @@ export class OpCodes {
     public 0x5e = () => {
         let addr = this.state.register.hl;
         this.state.register.e = this.state.memory.get(addr);
-        log.ops(`MOV E,M (${addr.toString(16)})`);
+        // log.ops(`MOV E,M (${addr.toString(16)})`);
         this.state.register.pc += 1;
     }
 
@@ -1564,7 +1507,7 @@ export class OpCodes {
      */
     public 0x5f = () => {
         this.state.register.e = this.state.register.a;
-        log.ops(`MOV E,A`);
+        // log.ops(`MOV E,A`);
         this.state.register.pc += 1;
     }
 
@@ -1573,7 +1516,7 @@ export class OpCodes {
      */
     public 0x60 = () => {
         this.state.register.h = this.state.register.b;
-        log.ops(`MOV H,B`);
+        // log.ops(`MOV H,B`);
         this.state.register.pc += 1;
     }
 
@@ -1582,7 +1525,7 @@ export class OpCodes {
      */
     public 0x61 = () => {
         this.state.register.h = this.state.register.c;
-        log.ops(`MOV H,C`);
+        // log.ops(`MOV H,C`);
         this.state.register.pc += 1;
     }
 
@@ -1591,7 +1534,7 @@ export class OpCodes {
      */
     public 0x62 = () => {
         this.state.register.h = this.state.register.d;
-        log.ops(`MOV H,D`);
+        // log.ops(`MOV H,D`);
         this.state.register.pc += 1;
     }
 
@@ -1600,7 +1543,7 @@ export class OpCodes {
      */
     public 0x63 = () => {
         this.state.register.h = this.state.register.e;
-        log.ops(`MOV H,E`);
+        // log.ops(`MOV H,E`);
         this.state.register.pc += 1;
     }
 
@@ -1609,7 +1552,7 @@ export class OpCodes {
      */
     public 0x64 = () => {
         this.state.register.h = this.state.register.h;
-        log.ops(`MOV H,H`);
+        // log.ops(`MOV H,H`);
         this.state.register.pc += 1;
     }
 
@@ -1618,7 +1561,7 @@ export class OpCodes {
      */
     public 0x65 = () => {
         this.state.register.h = this.state.register.l;
-        log.ops(`MOV H,L`);
+        // log.ops(`MOV H,L`);
         this.state.register.pc += 1;
     }
 
@@ -1628,7 +1571,7 @@ export class OpCodes {
     public 0x66 = () => {
         let addr = this.state.register.hl;
         this.state.register.h = this.state.memory.get(addr);
-        log.ops(`MOV H,M (${addr.toString(16)})`);
+        // log.ops(`MOV H,M (${addr.toString(16)})`);
         this.state.register.pc += 1;
     }
 
@@ -1637,7 +1580,7 @@ export class OpCodes {
      */
     public 0x67 = () => {
         this.state.register.h = this.state.register.a;
-        log.ops(`MOV H,A`);
+        // log.ops(`MOV H,A`);
         this.state.register.pc += 1;
     }
 
@@ -1646,7 +1589,7 @@ export class OpCodes {
      */
     public 0x68 = () => {
         this.state.register.l = this.state.register.b;
-        log.ops(`MOV L,B`);
+        // log.ops(`MOV L,B`);
         this.state.register.pc += 1;
     }
 
@@ -1655,7 +1598,7 @@ export class OpCodes {
      */
     public 0x69 = () => {
         this.state.register.l = this.state.register.c;
-        log.ops(`MOV L,C`);
+        // log.ops(`MOV L,C`);
         this.state.register.pc += 1;
     }
 
@@ -1664,7 +1607,7 @@ export class OpCodes {
      */
     public 0x6a = () => {
         this.state.register.l = this.state.register.d;
-        log.ops(`MOV L,D`);
+        // log.ops(`MOV L,D`);
         this.state.register.pc += 1;
     }
 
@@ -1673,7 +1616,7 @@ export class OpCodes {
      */
     public 0x6b = () => {
         this.state.register.l = this.state.register.e;
-        log.ops(`MOV L,E`);
+        // log.ops(`MOV L,E`);
         this.state.register.pc += 1;
     }
 
@@ -1682,7 +1625,7 @@ export class OpCodes {
      */
     public 0x6c = () => {
         this.state.register.l = this.state.register.h;
-        log.ops(`MOV L,H`);
+        // log.ops(`MOV L,H`);
         this.state.register.pc += 1;
     }
 
@@ -1691,7 +1634,7 @@ export class OpCodes {
      */
     public 0x6d = () => {
         this.state.register.l = this.state.register.l;
-        log.ops(`MOV L,L`);
+        // log.ops(`MOV L,L`);
         this.state.register.pc += 1;
     }
 
@@ -1701,7 +1644,7 @@ export class OpCodes {
     public 0x6e = () => {
         let addr = this.state.register.hl;
         this.state.register.l = this.state.memory.get(addr);
-        log.ops(`MOV L,M (${addr.toString(16)})`);
+        // log.ops(`MOV L,M (${addr.toString(16)})`);
         this.state.register.pc += 1;
     }
 
@@ -1710,7 +1653,7 @@ export class OpCodes {
      */
     public 0x6f = () => {
         this.state.register.l = this.state.register.a;
-        log.ops(`MOV L,A`);
+        // log.ops(`MOV L,A`);
         this.state.register.pc += 1;
     }
 
@@ -1720,7 +1663,7 @@ export class OpCodes {
     public 0x70 = () => {
         let m = this.state.register.hl;
         this.state.memory.set(m, this.state.register.b);
-        log.ops(`MOV M,B (${m.toString(16)})`);
+        // log.ops(`MOV M,B (${m.toString(16)})`);
         this.state.register.pc += 1;
     }
 
@@ -1730,7 +1673,7 @@ export class OpCodes {
     public 0x71 = () => {
         let m = this.state.register.hl;
         this.state.memory.set(m, this.state.register.c);
-        log.ops(`MOV M,C (${m.toString(16)})`);
+        // log.ops(`MOV M,C (${m.toString(16)})`);
         this.state.register.pc += 1;
     }
 
@@ -1740,7 +1683,7 @@ export class OpCodes {
     public 0x72 = () => {
         let m = this.state.register.hl;
         this.state.memory.set(m, this.state.register.d);
-        log.ops(`MOV M,D (${m.toString(16)})`);
+        // log.ops(`MOV M,D (${m.toString(16)})`);
         this.state.register.pc += 1;
     }
 
@@ -1750,7 +1693,7 @@ export class OpCodes {
     public 0x73 = () => {
         let m = this.state.register.hl;
         this.state.memory.set(m, this.state.register.e);
-        log.ops(`MOV M,E (${m.toString(16)})`);
+        // log.ops(`MOV M,E (${m.toString(16)})`);
         this.state.register.pc += 1;
     }
 
@@ -1760,7 +1703,7 @@ export class OpCodes {
     public 0x74 = () => {
         let m = this.state.register.hl;
         this.state.memory.set(m, this.state.register.h);
-        log.ops(`MOV M,H (${m.toString(16)})`);
+        // log.ops(`MOV M,H (${m.toString(16)})`);
         this.state.register.pc += 1;
     }
 
@@ -1770,7 +1713,7 @@ export class OpCodes {
     public 0x75 = () => {
         let m = this.state.register.hl;
         this.state.memory.set(m, this.state.register.l);
-        log.ops(`MOV M,L (${m.toString(16)})`);
+        // log.ops(`MOV M,L (${m.toString(16)})`);
         this.state.register.pc += 1;
     }
 
@@ -1781,7 +1724,7 @@ export class OpCodes {
         this.state.register.pc += 1;
         this.state.pause();
         console.log("HALT");
-        log.ops("HLT");
+        // log.ops("HLT");
     }
 
     /**
@@ -1790,7 +1733,7 @@ export class OpCodes {
     public 0x77 = () => {
         let m = this.state.register.hl;
         this.state.memory.set(m, this.state.register.a);
-        log.ops(`MOV M,A (${m.toString(16)})`);
+        // log.ops(`MOV M,A (${m.toString(16)})`);
         this.state.register.pc += 1;
     }
 
@@ -1799,7 +1742,7 @@ export class OpCodes {
      */
     public 0x78 = () => {
         this.state.register.a = this.state.register.b;
-        log.ops(`MOV A,B`);
+        // log.ops(`MOV A,B`);
         this.state.register.pc += 1;
     }
 
@@ -1808,7 +1751,7 @@ export class OpCodes {
      */
     public 0x79 = () => {
         this.state.register.a = this.state.register.c;
-        log.ops(`MOV A,C`);
+        // log.ops(`MOV A,C`);
         this.state.register.pc += 1;
     }
 
@@ -1817,7 +1760,7 @@ export class OpCodes {
      */
     public 0x7a = () => {
         this.state.register.a = this.state.register.d;
-        log.ops(`MOV A,D`);
+        // log.ops(`MOV A,D`);
         this.state.register.pc += 1;
     }
 
@@ -1826,7 +1769,7 @@ export class OpCodes {
      */
     public 0x7b = () => {
         this.state.register.a = this.state.register.e;
-        log.ops(`MOV A,E`);
+        // log.ops(`MOV A,E`);
         this.state.register.pc += 1;
     }
 
@@ -1835,7 +1778,7 @@ export class OpCodes {
      */
     public 0x7c = () => {
         this.state.register.a = this.state.register.h;
-        log.ops(`MOV A,H`);
+        // log.ops(`MOV A,H`);
         this.state.register.pc += 1;
     }
 
@@ -1844,7 +1787,7 @@ export class OpCodes {
      */
     public 0x7d = () => {
         this.state.register.a = this.state.register.l;
-        log.ops(`MOV A,L`);
+        // log.ops(`MOV A,L`);
         this.state.register.pc += 1;
     }
 
@@ -1854,7 +1797,7 @@ export class OpCodes {
     public 0x7e = () => {
         let addr = this.state.register.hl;
         this.state.register.a = this.state.memory.get(addr);
-        log.ops(`MOV A,M (${addr.toString(16)})`);
+        // log.ops(`MOV A,M (${addr.toString(16)})`);
         this.state.register.pc += 1;
     }
 
@@ -1863,7 +1806,7 @@ export class OpCodes {
      */
     public 0x7f = () => {
         this.state.register.a = this.state.register.a;
-        log.ops(`MOV A,A`);
+        // log.ops(`MOV A,A`);
         this.state.register.pc += 1;
     }
 
@@ -1876,7 +1819,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 1;
-        log.ops(`ADD B`);
+        // log.ops(`ADD B`);
     }
 
     /**
@@ -1888,7 +1831,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 1;
-        log.ops(`ADD C`);
+        // log.ops(`ADD C`);
     }
 
     /**
@@ -1900,7 +1843,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 1;
-        log.ops(`ADD D`);
+        // log.ops(`ADD D`);
     }
 
     /**
@@ -1912,7 +1855,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 1;
-        log.ops(`ADD E`);
+        // log.ops(`ADD E`);
     }
 
     /**
@@ -1924,7 +1867,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 1;
-        log.ops(`ADD H`);
+        // log.ops(`ADD H`);
     }
 
     /**
@@ -1936,7 +1879,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 1;
-        log.ops(`ADD L`);
+        // log.ops(`ADD L`);
     }
 
     /**
@@ -1948,7 +1891,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 1;
-        log.ops(`ADD (HL)`);
+        // log.ops(`ADD (HL)`);
     }
 
     /**
@@ -1960,7 +1903,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 1;
-        log.ops(`ADD A`);
+        // log.ops(`ADD A`);
     }
 
     /**
@@ -1972,7 +1915,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 1;
-        log.ops(`ADC B`);
+        // log.ops(`ADC B`);
     }
 
     /**
@@ -1984,7 +1927,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 1;
-        log.ops(`ADC C`);
+        // log.ops(`ADC C`);
     }
 
     /**
@@ -1996,7 +1939,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 1;
-        log.ops(`ADC D`);
+        // log.ops(`ADC D`);
     }
 
     /**
@@ -2008,7 +1951,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 1;
-        log.ops(`ADC E`);
+        // log.ops(`ADC E`);
     }
 
     /**
@@ -2020,7 +1963,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 1;
-        log.ops(`ADC H`);
+        // log.ops(`ADC H`);
     }
 
     /**
@@ -2032,7 +1975,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 1;
-        log.ops(`ADC L`);
+        // log.ops(`ADC L`);
     }
 
     /**
@@ -2044,7 +1987,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 1;
-        log.ops(`ADC (HL)`);
+        // log.ops(`ADC (HL)`);
     }
 
     /**
@@ -2056,7 +1999,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 1;
-        log.ops(`ADC A`);
+        // log.ops(`ADC A`);
     }
 
     /**
@@ -2068,7 +2011,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 1;
-        log.ops(`SUB B`);
+        // log.ops(`SUB B`);
     }
 
     /**
@@ -2080,7 +2023,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 1;
-        log.ops(`SUB C`);
+        // log.ops(`SUB C`);
     }
 
     /**
@@ -2092,7 +2035,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 1;
-        log.ops(`SUB D`);
+        // log.ops(`SUB D`);
     }
 
     /**
@@ -2104,7 +2047,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 1;
-        log.ops(`SUB E`);
+        // log.ops(`SUB E`);
     }
 
     /**
@@ -2116,7 +2059,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 1;
-        log.ops(`SUB H`);
+        // log.ops(`SUB H`);
     }
 
     /**
@@ -2128,7 +2071,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 1;
-        log.ops(`SUB L`);
+        // log.ops(`SUB L`);
     }
 
     /**
@@ -2140,7 +2083,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 1;
-        log.ops(`SUB (HL)`);
+        // log.ops(`SUB (HL)`);
     }
 
     /**
@@ -2152,7 +2095,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 1;
-        log.ops(`SUB A`);
+        // log.ops(`SUB A`);
     }
 
     /**
@@ -2164,7 +2107,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 1;
-        log.ops(`SBB B`);
+        // log.ops(`SBB B`);
     }
 
     /**
@@ -2176,7 +2119,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 1;
-        log.ops(`SBB C`);
+        // log.ops(`SBB C`);
     }
 
     /**
@@ -2188,7 +2131,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 1;
-        log.ops(`SBB D`);
+        // log.ops(`SBB D`);
     }
 
     /**
@@ -2200,7 +2143,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 1;
-        log.ops(`SBB E`);
+        // log.ops(`SBB E`);
     }
 
     /**
@@ -2212,7 +2155,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 1;
-        log.ops(`SBB H`);
+        // log.ops(`SBB H`);
     }
 
     /**
@@ -2224,7 +2167,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 1;
-        log.ops(`SBB L`);
+        // log.ops(`SBB L`);
     }
 
     /**
@@ -2236,7 +2179,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 1;
-        log.ops(`SBB (HL)`);
+        // log.ops(`SBB (HL)`);
     }
 
     /**
@@ -2248,7 +2191,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 1;
-        log.ops(`SBB A`);
+        // log.ops(`SBB A`);
     }
 
     /**
@@ -2260,7 +2203,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 1;
-        log.ops(`ANA B`);
+        // log.ops(`ANA B`);
     }
 
     /**
@@ -2272,7 +2215,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 1;
-        log.ops(`ANA C`);
+        // log.ops(`ANA C`);
     }
 
     /**
@@ -2284,7 +2227,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 1;
-        log.ops(`ANA D`);
+        // log.ops(`ANA D`);
     }
 
     /**
@@ -2296,7 +2239,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 1;
-        log.ops(`ANA E`);
+        // log.ops(`ANA E`);
     }
 
     /**
@@ -2308,7 +2251,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 1;
-        log.ops(`ANA H`);
+        // log.ops(`ANA H`);
     }
 
     /**
@@ -2320,7 +2263,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 1;
-        log.ops(`ANA L`);
+        // log.ops(`ANA L`);
     }
 
     /**
@@ -2332,7 +2275,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 1;
-        log.ops(`ANA (HL)`);
+        // log.ops(`ANA (HL)`);
     }
 
     /**
@@ -2344,7 +2287,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 1;
-        log.ops(`ANA A`);
+        // log.ops(`ANA A`);
     }
 
     /**
@@ -2356,7 +2299,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 1;
-        log.ops(`XRA B`);
+        // log.ops(`XRA B`);
     }
 
     /**
@@ -2368,7 +2311,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 1;
-        log.ops(`XRA C`);
+        // log.ops(`XRA C`);
     }
 
     /**
@@ -2380,7 +2323,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 1;
-        log.ops(`XRA D`);
+        // log.ops(`XRA D`);
     }
 
     /**
@@ -2392,7 +2335,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 1;
-        log.ops(`XRA E`);
+        // log.ops(`XRA E`);
     }
 
     /**
@@ -2404,7 +2347,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 1;
-        log.ops(`XRA H`);
+        // log.ops(`XRA H`);
     }
 
     /**
@@ -2416,7 +2359,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 1;
-        log.ops(`XRA L`);
+        // log.ops(`XRA L`);
     }
 
     /**
@@ -2428,7 +2371,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 1;
-        log.ops(`XRA (HL)`);
+        // log.ops(`XRA (HL)`);
     }
 
     /**
@@ -2440,7 +2383,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 1;
-        log.ops(`XRA A`);
+        // log.ops(`XRA A`);
     }
 
     /**
@@ -2452,7 +2395,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 1;
-        log.ops(`ORA B`);
+        // log.ops(`ORA B`);
     }
 
     /**
@@ -2464,7 +2407,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 1;
-        log.ops(`ORA C`);
+        // log.ops(`ORA C`);
     }
 
     /**
@@ -2476,7 +2419,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 1;
-        log.ops(`ORA D`);
+        // log.ops(`ORA D`);
     }
 
     /**
@@ -2488,7 +2431,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 1;
-        log.ops(`ORA E`);
+        // log.ops(`ORA E`);
     }
 
     /**
@@ -2500,7 +2443,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 1;
-        log.ops(`ORA H`);
+        // log.ops(`ORA H`);
     }
 
     /**
@@ -2512,7 +2455,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 1;
-        log.ops(`ORA L`);
+        // log.ops(`ORA L`);
     }
 
     /**
@@ -2524,7 +2467,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 1;
-        log.ops(`ORA (HL)`);
+        // log.ops(`ORA (HL)`);
     }
 
     /**
@@ -2536,7 +2479,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 1;
-        log.ops(`ORA A`);
+        // log.ops(`ORA A`);
     }
 
     /**
@@ -2547,7 +2490,7 @@ export class OpCodes {
         this.state.cc.setSZP(ans);
         this.state.cc.carry(ans);
         this.state.register.pc += 1;
-        log.ops(`CMP B`);
+        // log.ops(`CMP B`);
     }
 
     /**
@@ -2558,7 +2501,7 @@ export class OpCodes {
         this.state.cc.setSZP(ans);
         this.state.cc.carry(ans);
         this.state.register.pc += 1;
-        log.ops(`CMP C`);
+        // log.ops(`CMP C`);
     }
 
     /**
@@ -2569,7 +2512,7 @@ export class OpCodes {
         this.state.cc.setSZP(ans);
         this.state.cc.carry(ans);
         this.state.register.pc += 1;
-        log.ops(`CMP D`);
+        // log.ops(`CMP D`);
     }
 
     /**
@@ -2580,7 +2523,7 @@ export class OpCodes {
         this.state.cc.setSZP(ans);
         this.state.cc.carry(ans);
         this.state.register.pc += 1;
-        log.ops(`CMP E`);
+        // log.ops(`CMP E`);
     }
 
     /**
@@ -2591,7 +2534,7 @@ export class OpCodes {
         this.state.cc.setSZP(ans);
         this.state.cc.carry(ans);
         this.state.register.pc += 1;
-        log.ops(`CMP H`);
+        // log.ops(`CMP H`);
     }
 
     /**
@@ -2602,7 +2545,7 @@ export class OpCodes {
         this.state.cc.setSZP(ans);
         this.state.cc.carry(ans);
         this.state.register.pc += 1;
-        log.ops(`CMP L`);
+        // log.ops(`CMP L`);
     }
 
     /**
@@ -2613,7 +2556,7 @@ export class OpCodes {
         this.state.cc.setSZP(ans);
         this.state.cc.carry(ans);
         this.state.register.pc += 1;
-        log.ops(`CMP (HL)`);
+        // log.ops(`CMP (HL)`);
     }
 
     /**
@@ -2624,7 +2567,7 @@ export class OpCodes {
         this.state.cc.setSZP(ans);
         this.state.cc.carry(ans);
         this.state.register.pc += 1;
-        log.ops(`CMP A`);
+        // log.ops(`CMP A`);
     }
 
     /**
@@ -2633,7 +2576,7 @@ export class OpCodes {
     public 0xc0 = () => {
         if (this.state.cc.z !== 0) {
             this.state.register.pc += 1;
-            log.ops(`RNZ`);
+            // log.ops(`RNZ`);
             return;
         }
         this.return("RNZ");
@@ -2645,7 +2588,7 @@ export class OpCodes {
     public 0xc1 = () => {
         this.state.register.bc = this.pop();
         this.state.register.pc += 1;
-        log.ops(`POP B`);
+        // log.ops(`POP B`);
     }
 
     /**
@@ -2654,7 +2597,7 @@ export class OpCodes {
     public 0xc2 = () => {
         if (this.state.cc.z !== 0) {
             this.state.register.pc += 3;
-            log.ops(`JNZ`);
+            // log.ops(`JNZ`);
             return;
         }
         this.jump("JNZ");
@@ -2673,7 +2616,7 @@ export class OpCodes {
     public 0xc4 = () => {
         if (this.state.cc.z !== 0) {
             this.state.register.pc += 3;
-            log.ops(`CNZ`);
+            // log.ops(`CNZ`);
             return;
         }
         this.call("CNZ");
@@ -2685,7 +2628,7 @@ export class OpCodes {
     public 0xc5 = () => {
         this.push(this.state.register.bc);
         this.state.register.pc += 1;
-        log.ops(`PUSH B`);
+        // log.ops(`PUSH B`);
     }
 
     /**
@@ -2698,7 +2641,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 2;
-        log.ops(`ADI ${byte.toString(16)}`);
+        // log.ops(`ADI ${byte.toString(16)}`);
     }
 
     /**
@@ -2714,7 +2657,7 @@ export class OpCodes {
     public 0xc8 = () => {
         if (this.state.cc.z === 0) {
             this.state.register.pc += 1;
-            log.ops(`RZ`);
+            // log.ops(`RZ`);
             return;
         }
         this.return("RZ");
@@ -2734,7 +2677,7 @@ export class OpCodes {
     public 0xca = () => {
         if (this.state.cc.z === 0) {
             this.state.register.pc += 3;
-            log.ops(`JZ`);
+            // log.ops(`JZ`);
             return;
         }
         this.jump("JZ");
@@ -2746,7 +2689,7 @@ export class OpCodes {
     public 0xcc = () => {
         if (this.state.cc.z === 0) {
             this.state.register.pc += 3;
-            log.ops(`CZ`);
+            // log.ops(`CZ`);
             return;
         }
         this.call("CZ");
@@ -2758,7 +2701,7 @@ export class OpCodes {
     public 0xcd = () => {
         // if (cpudiag) {
         //     if (this.state.memory.get16(this.state.register.pc + 1) == 0x05) {
-        //         log.ops(`CALL ${this.state.memory.get16(this.state.register.pc + 1)}`);
+        //         // log.ops(`CALL ${this.state.memory.get16(this.state.register.pc + 1)}`);
         //         if (this.state.register.c === 0x09) {
         //             let addr = this.state.register.de;
         //             let chr = String.fromCharCode(this.state.memory.get(addr));
@@ -2778,7 +2721,7 @@ export class OpCodes {
         //             return;
         //         }
         //     } else if (this.state.memory.get16(this.state.register.pc + 1) === 0x00) {
-        //         log.ops(`CALL ${this.state.memory.get16(this.state.register.pc + 1)}`);
+        //         // log.ops(`CALL ${this.state.memory.get16(this.state.register.pc + 1)}`);
         //         this.state.ready = false;
         //         console.log("other print routine called");
         //         this.state.register.pc += 3;
@@ -2798,7 +2741,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 2;
-        log.ops(`ACI ${data}`);
+        // log.ops(`ACI ${data}`);
     }
 
     /**
@@ -2814,7 +2757,7 @@ export class OpCodes {
     public 0xd0 = () => {
         if (this.state.cc.cy !== 0) {
             this.state.register.pc += 1;
-            log.ops(`RNC`);
+            // log.ops(`RNC`);
             return;
         }
         this.return("RNC");
@@ -2826,7 +2769,7 @@ export class OpCodes {
     public 0xd1 = () => {
         this.state.register.de = this.pop();
         this.state.register.pc += 1;
-        log.ops(`POP D`);
+        // log.ops(`POP D`);
     }
 
     /**
@@ -2835,7 +2778,7 @@ export class OpCodes {
     public 0xd2 = () => {
         if (this.state.cc.cy !== 0) {
             this.state.register.pc += 3;
-            log.ops(`JNC`);
+            // log.ops(`JNC`);
             return;
         }
         this.jump("JNC");
@@ -2846,7 +2789,7 @@ export class OpCodes {
      */
     public 0xd3 = () => {
         let port = this.state.memory.get(this.state.register.pc + 1);
-        log.ops(`OUT ${port.toString(16)} (${this.state.register.a})`);
+        // log.ops(`OUT ${port.toString(16)} (${this.state.register.a})`);
         try {
             this.state.io[port] = this.state.register.a;
         } catch(e) {
@@ -2861,7 +2804,7 @@ export class OpCodes {
     public 0xd4 = () => {
         if (this.state.cc.cy !== 0) {
             this.state.register.pc += 3;
-            log.ops(`CNC`);
+            // log.ops(`CNC`);
             return;
         }
         this.call("CNC");
@@ -2873,7 +2816,7 @@ export class OpCodes {
     public 0xd5 = () => {
         this.push(this.state.register.de);
         this.state.register.pc += 1;
-        log.ops(`PUSH D`);
+        // log.ops(`PUSH D`);
     }
 
     /**
@@ -2886,7 +2829,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 2;
-        log.ops(`SUI ${data}`);
+        // log.ops(`SUI ${data}`);
     }
 
     /**
@@ -2902,7 +2845,7 @@ export class OpCodes {
     public 0xd8 = () => {
         if (this.state.cc.cy === 0) {
             this.state.register.pc += 1;
-            log.ops(`RC`);
+            // log.ops(`RC`);
             return;
         }
         this.return("RC");
@@ -2914,7 +2857,7 @@ export class OpCodes {
     public 0xda = () => {
         if (this.state.cc.cy === 0) {
             this.state.register.pc += 3;
-            log.ops(`JC`);
+            // log.ops(`JC`);
             return;
         }
         this.jump("JC");
@@ -2930,7 +2873,7 @@ export class OpCodes {
         } catch(e) {
             throw "Unimplemented io port access";
         }
-        log.ops(`IN ${port.toString(16)} (${this.state.register.a})`);
+        // log.ops(`IN ${port.toString(16)} (${this.state.register.a})`);
         this.state.register.pc += 2;
     }
 
@@ -2940,7 +2883,7 @@ export class OpCodes {
     public 0xdc = () => {
         if (this.state.cc.cy === 0) {
             this.state.register.pc += 3;
-            log.ops(`CC`);
+            // log.ops(`CC`);
             return;
         }
         this.call("CC");
@@ -2956,7 +2899,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 2;
-        log.ops(`SBI ${data}`);
+        // log.ops(`SBI ${data}`);
     }
 
     /**
@@ -2972,7 +2915,7 @@ export class OpCodes {
     public 0xe0 = () => {
         if (this.state.cc.p !== 0) {
             this.state.register.pc += 1;
-            log.ops(`RPO`);
+            // log.ops(`RPO`);
             return;
         }
         this.return("RPO");
@@ -2984,7 +2927,7 @@ export class OpCodes {
     public 0xe1 = () => {
         this.state.register.hl = this.pop();
         this.state.register.pc += 1;
-        log.ops(`POP H`);
+        // log.ops(`POP H`);
     }
 
     /**
@@ -2993,7 +2936,7 @@ export class OpCodes {
     public 0xe2 = () => {
         if (this.state.cc.p !== 0) {
             this.state.register.pc += 3;
-            log.ops(`JPO`);
+            // log.ops(`JPO`);
             return;
         }
         this.jump("JPO");
@@ -3009,7 +2952,7 @@ export class OpCodes {
         this.state.register.pc += 1;
         this.pop();
         this.push(hl);
-        log.ops(`XTHL`);
+        // log.ops(`XTHL`);
     }
 
     /**
@@ -3018,7 +2961,7 @@ export class OpCodes {
     public 0xe4 = () => {
         if (this.state.cc.p !== 0) {
             this.state.register.pc += 3;
-            log.ops(`CPO`);
+            // log.ops(`CPO`);
             return;
         }
         this.call("CPO");
@@ -3030,7 +2973,7 @@ export class OpCodes {
     public 0xe5 = () => {
         this.push(this.state.register.hl);
         this.state.register.pc += 1;
-        log.ops(`PUSH H`);
+        // log.ops(`PUSH H`);
     }
 
     /**
@@ -3043,7 +2986,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 2;
-        log.ops(`ANI ${data}`);
+        // log.ops(`ANI ${data}`);
     }
 
     /**
@@ -3059,7 +3002,7 @@ export class OpCodes {
     public 0xe8 = () => {
         if (this.state.cc.p === 0) {
             this.state.register.pc += 1;
-            log.ops(`RPE`);
+            // log.ops(`RPE`);
             return;
         }
         this.return("RPE");
@@ -3070,7 +3013,7 @@ export class OpCodes {
      */
     public 0xe9 = () => {
         this.state.register.pc = this.state.register.hl;
-        log.ops(`PCHL`);
+        // log.ops(`PCHL`);
     }
 
     /**
@@ -3079,7 +3022,7 @@ export class OpCodes {
     public 0xea = () => {
         if (this.state.cc.p === 0) {
             this.state.register.pc += 3;
-            log.ops(`JPE`);
+            // log.ops(`JPE`);
             return;
         }
         this.jump("JPE");
@@ -3091,7 +3034,7 @@ export class OpCodes {
     public 0xeb = () => {
         [this.state.register.de, this.state.register.hl] = [this.state.register.hl, this.state.register.de];
         this.state.register.pc += 1;
-        log.ops(`XCHG`);
+        // log.ops(`XCHG`);
     }
 
     /**
@@ -3100,7 +3043,7 @@ export class OpCodes {
     public 0xec = () => {
         if (this.state.cc.p === 0) {
             this.state.register.pc += 3;
-            log.ops(`CPE`);
+            // log.ops(`CPE`);
             return;
         }
         this.call("CPE");
@@ -3116,7 +3059,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 2;
-        log.ops(`XRI ${data}`);
+        // log.ops(`XRI ${data}`);
     }
 
     /**
@@ -3132,7 +3075,7 @@ export class OpCodes {
     public 0xf0 = () => {
         if (this.state.cc.s !== 0) {
             this.state.register.pc += 1;
-            log.ops(`RP`);
+            // log.ops(`RP`);
             return;
         }
         this.return("RP");
@@ -3144,7 +3087,7 @@ export class OpCodes {
     public 0xf1 = () => {
         this.state.register.psw = this.pop();
         this.state.register.pc += 1;
-        log.ops(`POP H`);
+        // log.ops(`POP H`);
     }
 
     /**
@@ -3153,7 +3096,7 @@ export class OpCodes {
     public 0xf2 = () => {
         if (this.state.cc.s !== 0) {
             this.state.register.pc += 3;
-            log.ops(`JP`);
+            // log.ops(`JP`);
             return;
         }
         this.jump("JP");
@@ -3165,7 +3108,7 @@ export class OpCodes {
     public 0xf3 = () => {
         this.state.int = false;
         this.state.register.pc += 1;
-        log.ops(`DI`);
+        // log.ops(`DI`);
     }
 
     /**
@@ -3174,7 +3117,7 @@ export class OpCodes {
     public 0xf4 = () => {
         if (this.state.cc.s !== 0) {
             this.state.register.pc += 3;
-            log.ops(`CP`);
+            // log.ops(`CP`);
             return;
         }
         this.call("CP");
@@ -3186,7 +3129,7 @@ export class OpCodes {
     public 0xf5 = () => {
         this.push(this.state.register.psw);
         this.state.register.pc += 1;
-        log.ops(`PUSH PSW`);
+        // log.ops(`PUSH PSW`);
     }
 
     /**
@@ -3199,7 +3142,7 @@ export class OpCodes {
         this.state.cc.carry(ans);
         this.state.register.a = ans;
         this.state.register.pc += 2;
-        log.ops(`SBI ${data}`);
+        // log.ops(`SBI ${data}`);
     }
 
     /**
@@ -3215,7 +3158,7 @@ export class OpCodes {
     public 0xf8 = () => {
         if (this.state.cc.s === 0) {
             this.state.register.pc += 1;
-            log.ops(`RM`);
+            // log.ops(`RM`);
             return;
         }
         this.return("RM");
@@ -3227,7 +3170,7 @@ export class OpCodes {
     public 0xf9 = () => {
         this.state.register.sp = this.state.register.hl;
         this.state.register.pc += 1;
-        log.ops(`SPHL`);
+        // log.ops(`SPHL`);
     }
 
     /**
@@ -3236,7 +3179,7 @@ export class OpCodes {
     public 0xfa = () => {
         if (this.state.cc.s === 0) {
             this.state.register.pc += 3;
-            log.ops(`JM`);
+            // log.ops(`JM`);
             return;
         }
         this.jump("JM");
@@ -3248,7 +3191,7 @@ export class OpCodes {
     public 0xfb = () => {
         this.state.int = true;
         this.state.register.pc += 1;
-        log.ops(`EI`);
+        // log.ops(`EI`);
     }
 
     /**
@@ -3257,7 +3200,7 @@ export class OpCodes {
     public 0xfc = () => {
         if (this.state.cc.s === 0) {
             this.state.register.pc += 3;
-            log.ops(`CM`);
+            // log.ops(`CM`);
             return;
         }
         this.call("CM");
@@ -3272,7 +3215,7 @@ export class OpCodes {
         this.state.cc.setSZP(ans);
         this.state.cc.cy = Number(this.state.register.a < byte);
         this.state.register.pc += 2;
-        log.ops(`CPI ${byte.toString(16)}`);
+        // log.ops(`CPI ${byte.toString(16)}`);
     }
 
     /**
@@ -3290,7 +3233,7 @@ export class OpCodes {
     private call(type: string): void {
         this.push(this.state.register.pc + 3);
         this.state.register.pc = this.state.memory.get16(this.state.register.pc + 1);
-        log.ops(`${type} ${this.state.register.pc.toString(16)}`);
+        // log.ops(`${type} ${this.state.register.pc.toString(16)}`);
     }
 
     /**
@@ -3299,7 +3242,7 @@ export class OpCodes {
     private jump(type: string): void {
         let addr = this.state.memory.get16(this.state.register.pc + 1);
         this.state.register.pc = addr;
-        log.ops(`${type} ${addr.toString(16)}`);
+        // log.ops(`${type} ${addr.toString(16)}`);
     }
 
     /**
@@ -3331,7 +3274,7 @@ export class OpCodes {
     private return(type: string): void {
         this.state.register.pc = this.pop();
         // this.state.register.pc += 1;
-        log.ops(`${type} ${this.state.register.pc.toString(16)}`);
+        // log.ops(`${type} ${this.state.register.pc.toString(16)}`);
     }
 
     /**
@@ -3342,7 +3285,7 @@ export class OpCodes {
     private rst(addr: number): void {
         this.push(this.state.register.pc);
         this.state.register.pc = addr;
-        log.ops(`RST ${addr.toString(16).padStart(2, "0")}`);
+        // log.ops(`RST ${addr.toString(16).padStart(2, "0")}`);
     }
 
     /**
