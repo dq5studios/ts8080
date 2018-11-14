@@ -1,23 +1,99 @@
-// import { Logger } from "./logger.js";
+/**
+ * 8080 processor as a webworker
+ */
 
-// let log: Logger = new Logger();
+
+/**
+ * postMessage dispatcher
+ *
+ * @param {MessageEvent} event Message received
+ */
+function commandDispatch(event: MessageEvent): void {
+    if (typeof event.data.action == "undefined") {
+        return;
+    }
+    switch (event.data.action) {
+        case "init":
+            // Initialize the emulator
+            machine = new SpaceInvaders();
+            break;
+        case "start":
+            // Start the emulator
+            machine.start();
+            break;
+        case "stop":
+            // Stop the emulator
+            machine.stop();
+            break;
+        case "down_credit":
+            machine.downCredit();
+            break;
+        case "up_credit":
+            machine.upCredit();
+            break;
+        case "down_p1_start":
+            machine.downP1Start();
+            break;
+        case "up_p1_start":
+            machine.upP1Start();
+            break;
+        case "down_p1_shot":
+            machine.downP1Shot();
+            break;
+        case "up_p1_shot":
+            machine.upP1Shot();
+            break;
+        case "down_p1_left":
+            machine.downP1Left();
+            break;
+        case "up_p1_left":
+            machine.upP1Left();
+            break;
+        case "down_p1_right":
+            machine.downP1Right();
+            break;
+        case "up_p1_right":
+            machine.upP1Right();
+            break;
+        case "interrupt":
+            if (machine.int && machine.active_int == 0x00) {
+                machine.active_int = event.data.int;
+            }
+            break;
+        case "memory":
+            // Send back the vram
+            // from 0x2400 to 0x4000, 0x1c00
+            // let length = 0x4000;
+            let vram = machine.memory.memory.buffer;
+            // let destView = new Uint8Array(new ArrayBuffer(length));
+            // let offset = 0;
+            // destView.set(sourceView, offset);
+            // let vram = new DataView(destView.buffer);
+            self.postMessage([vram]);
+            break;
+    }
+}
+
+
+let machine: SpaceInvaders;
+self.onmessage = commandDispatch;
+
 
 /**
  * 8080 CPU
  */
-export class State8080 {
-    public ready: boolean = false; // Finished loading, ready to execute
+class State8080 {
+    public ready: boolean = false; // Ready for execution
+    public time: number = this.now(); // Execution time elapsed
+    public cycles: number = 0; // Number of cycles to be executed
     public register: Registers = new Registers(); // Register container
     public int: boolean = true; // Interrupts enabled
     public active_int: number = 0x00; // Interrupt to run
     public memory!: Memory; // We don't create a memory object until we load the rom image
     public cc: ConditionCodes = new ConditionCodes(this);
     public ops: OpCodes = new OpCodes(this);
-    public cycles = 0; // Number of cycles executed
     public io!: IO8080;
-    public time: number = 0;
-    public stack: string[] = [];
-    // public log: Logger = new Logger();
+
 
     /**
      * Creates an instance of State8080
@@ -35,52 +111,36 @@ export class State8080 {
      * Initialize registers
      */
     public init(): void {
-        // if (cpudiag) {
-        //     this.register.pc = 0x100;
-        //     this.register.sp = 0x7ad;
-        //     // remove when fixing aux carry
-        //     this.memory.set(0x59c, 0xc3);
-        //     this.memory.set(0x59d, 0xc2);
-        //     this.memory.set(0x59e, 0x05);
-        //     this.memory.set16(0x06, 0x1400);
-        // }
         this.ready = true;
         console.log("Ready");
     }
 
     /**
-     * Pause emulation
+     * Stop emulation
      */
-    public pause(): void {
-        this.ready = !this.ready;
+    public stop(): void {
+        this.ready = false;
     }
 
     /**
      * Start emulation
      */
-    public run(): void {
-        if (!this.ready) {
-            return;
-        }
-        try {
-            // this.time = performance.now();
-            this.time = Date.now();
+    public start(): void {
+        if (this.ready) {
+        // while (this.ready) {
+            // this.time = this.now();
             this.cycle();
-        } catch (err) {
-            console.log(err);
-            throw "Run failed";
+            setTimeout(() => { this.start(); });
         }
     }
 
     /**
      * Execute the number of cycles that should've ran since the last mark
      */
-    public cycle() {
-        // this.cycles += (performance.now() - this.time) * 2000;
-        this.cycles += (Date.now() - this.time) * 2000;
-        // this.time = performance.now();
-        this.time = Date.now();
-        console.log(this.cycles);
+    public cycle(): void {
+        this.cycles += (this.now() - this.time) * 2000;
+        this.time = this.now();
+        // console.log(this.cycles);
         while (this.cycles > 0) {
             if (!this.ready) {
                 return;
@@ -97,7 +157,7 @@ export class State8080 {
                 throw `Unimplemented OpCode ${opcode} at ${addr.toString(16).padStart(4, "0")}`;
             }
             // Opcode JMP 0xad7 (C3 D7 0A) is a delay loop
-            if (this.memory.get(this.register.pc) === 0xc3) {
+            if (opcode === 0xc3) {
                 // JMP command
                 if (this.memory.get16(this.register.pc + 1) === 0x0ad7) {
                     // Move to RET command of wait subroutine
@@ -105,7 +165,7 @@ export class State8080 {
                     // A register contains how many cycles to wait
                     let len = this.register.a / 0x40;
                     console.log(`delay for ${len} seconds`);
-                    setTimeout(() => { this.time = Date.now(); /*this.time = performance.now();*/ this.cycle(); }, 1000 * len);
+                    setTimeout(() => { this.time = this.now(); this.cycle(); }, 1000 * len);
                     return;
                 }
             }
@@ -117,14 +177,120 @@ export class State8080 {
             }
             this.cycles -= this.ops.cycle[opcode];
         }
-        setTimeout(() => { this.cycle(); });
+    }
+
+    /**
+     * Returns time, either perf or date
+     *
+     * @returns number Timestamp
+     */
+    public now(): number {
+        // return performance.now();
+        return Date.now();
     }
 }
+
+
+/**
+ * Space Invaders machine
+ *
+ * @class SpaceInvaders
+ * @extends {State8080}
+ */
+class SpaceInvaders extends State8080 {
+    /**
+     * Load the invaders rom dump into the 8080
+     */
+    constructor() {
+        super("invaders");
+    }
+
+    public init() {
+        super.init();
+        this.io = new IO8080();
+        this.register.pc = 0;
+        this.register.sp = 0x00;
+        console.log("Ready machine");
+    }
+
+    public downCredit(): void {
+        this.io.port[1] |= 0b00000001;
+    }
+
+    public upCredit(): void {
+        this.io.port[1] &= 0b11111110;
+    }
+
+    public downP2Start(): void {
+        this.io.port[1] |= 0b00000010;
+    }
+
+    public upP2Start(): void {
+        this.io.port[1] &= 0b11111101;
+    }
+
+    public downP1Start(): void {
+        this.io.port[1] |= 0b00000100;
+    }
+
+    public upP1Start(): void {
+        this.io.port[1] &= 0b11111011;
+    }
+
+    public downP1Shot(): void {
+        this.io.port[1] |= 0b00010000;
+    }
+
+    public upP1Shot(): void {
+        this.io.port[1] &= 0b11101111;
+    }
+
+    public downP1Left(): void {
+        this.io.port[1] |= 0b00100000;
+    }
+
+    public upP1Left(): void {
+        this.io.port[1] &= 0b11011111;
+    }
+
+    public downP1Right(): void {
+        this.io.port[1] |= 0b01000000;
+    }
+
+    public upP1Right(): void {
+        this.io.port[1] &= 0b10111111;
+    }
+
+    public downP2Shot(): void {
+        this.io.port[2] |= 0b00010000;
+    }
+
+    public upP2Shot(): void {
+        this.io.port[2] &= 0b11101111;
+    }
+
+    public downP2Left(): void {
+        this.io.port[2] |= 0b00100000;
+    }
+
+    public upP2Left(): void {
+        this.io.port[2] &= 0b11011111;
+    }
+
+    public downP2Right(): void {
+        this.io.port[2] |= 0b01000000;
+    }
+
+    public upP2Right(): void {
+        this.io.port[2] &= 0b10111111;
+    }
+}
+
 
 /**
  * 8080 condition codes
  */
-export class ConditionCodes {
+class ConditionCodes {
     private state: State8080;
 
     /**
@@ -283,7 +449,7 @@ export class ConditionCodes {
 /**
  * 8080 registers
  */
-export class Registers {
+class Registers {
     private _a!: number;
     private _f: number = 0b00000010;
     private _b!: number;
@@ -526,11 +692,21 @@ export class Registers {
 /**
  * Control access to the 8080 memory
  */
-export class Memory {
-    private memory: DataView;
+class Memory {
+    public memory: DataView;
+
+    /**
+     * Creates an instance of Memory, pads out to 16k
+     *
+     * @param {ArrayBuffer} buffer ROM image to load
+     */
     constructor(buffer: ArrayBuffer) {
-        let tmp = ArrayBuffer.transfer(buffer, 0x4000);
-        this.memory = new DataView(tmp);
+        let length = 0x4000;
+        let sourceView = new Uint8Array(buffer);
+        let destView = new Uint8Array(new ArrayBuffer(length));
+        let offset = 0;
+        destView.set(sourceView, offset);
+        this.memory = new DataView(destView.buffer);
         // log.drawMemory(this.memory);
     }
 
@@ -617,14 +793,142 @@ export class Memory {
 /**
  * IO port of 8080
  */
-export class IO8080 {
+class IO8080 {
     [index: number]: number;
+
+    private alpha = [
+        "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V",
+        "W", "X", "Y", "Z", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "<", ">", " ", "=", "*"
+    ];
+    public port: number[];
+    private shift: number = 0; // Internal shift register for 16 bit shifting
+
+    /**
+     * Write the initial state of the IO ports
+     */
+    constructor() {
+        this.port = [];
+        this.port[0] = 0b00001110;
+        this.port[1] = 0b00001000;
+        this.port[2] = 0b00000000;
+        this.port[3] = 0b00000000;
+    }
+
+    /**
+     * Read port 0, not used
+     * bit 0 DIP4 (Seems to be self-test-request read at power up)
+     * bit 1 Always 1
+     * bit 2 Always 1
+     * bit 3 Always 1
+     * bit 4 Fire
+     * bit 5 Left
+     * bit 6 Right
+     * bit 7 ? tied to demux port 7 ?
+     */
+    public get 0x00() {
+        return this.port[0];
+    }
+
+    /**
+     * Read port 1, Player one controls
+     * bit 0 = CREDIT (1 if deposit)
+     * bit 1 = 2P start (1 if pressed)
+     * bit 2 = 1P start (1 if pressed)
+     * bit 3 = Always 1
+     * bit 4 = 1P shot (1 if pressed)
+     * bit 5 = 1P left (1 if pressed)
+     * bit 6 = 1P right (1 if pressed)
+     * bit 7 = Not connected
+     */
+    public get 0x01() {
+        return this.port[1];
+    }
+
+    /**
+     * Read port 2, Player two controls
+     * bit 0 = DIP3 00 = 3 ships  10 = 5 ships
+     * bit 1 = DIP5 01 = 4 ships  11 = 6 ships
+     * bit 2 = Tilt
+     * bit 3 = DIP6 0 = extra ship at 1500, 1 = extra ship at 1000
+     * bit 4 = P2 shot (1 if pressed)
+     * bit 5 = P2 left (1 if pressed)
+     * bit 6 = P2 right (1 if pressed)
+     * bit 7 = DIP7 Coin info displayed in demo screen 0=ON
+     */
+    public get 0x02() {
+        return this.port[2];
+    }
+
+    /**
+     * Shift amount
+     */
+    public set 0x02(v: number) {
+        this.shift = (((this.shift << v) & 0xffff) >> 8);
+    }
+
+    /**
+     * Shift results
+     */
+    public get 0x03() {
+        return this.shift;
+    }
+
+    /**
+     * Sound clips
+     * bit 0= UFO (repeats)        SX0 0.raw
+     * bit 1= Shot                 SX1 1.raw
+     * bit 2= Flash (player die)   SX2 2.raw
+     * bit 3= Invader die          SX3 3.raw
+     * bit 4= Extended play        SX4
+     * bit 5= AMP enable           SX5
+     * bit 6= NC (not wired)
+     * bit 7= NC (not wired)
+     */
+    public set 0x03(v: number) {
+        // console.log(`Play sound #${v}`);
+    }
+
+    /**
+     * Shift data
+     */
+    public set 0x04(v: number) {
+        this.shift = this.shift >> 8;
+        this.shift += (v << 8);
+        this.shift = this.shift & 0xffff;
+    }
+
+    /**
+     * Sound clips
+     * bit 0= Fleet movement 1     SX6 4.raw
+     * bit 1= Fleet movement 2     SX7 5.raw
+     * bit 2= Fleet movement 3     SX8 6.raw
+     * bit 3= Fleet movement 4     SX9 7.raw
+     * bit 4= UFO Hit              SX10 8.raw
+     * bit 5= NC (Cocktail mode control ... to flip screen)
+     * bit 6= NC (not wired)
+     * bit 7= NC (not wired)
+     */
+    public set 0x05(v: number) {
+        // console.log(`Play sound #${v}`);
+    }
+
+    /**
+     * Write to watchdog
+     */
+    public set 0x06(v: number) {
+        if (typeof this.alpha[v] === "undefined") {
+            // console.log(v);
+            return;
+        }
+        // console.log(this.alpha[v]);
+    }
+
 }
 
 /**
  * Execute requested 8080 opcode
  */
-export class OpCodes {
+class OpCodes {
 
     // Numeric index is the opcode list
     [index: number]: Function;
@@ -1722,7 +2026,7 @@ export class OpCodes {
      */
     public 0x76 = () => {
         this.state.register.pc += 1;
-        this.state.pause();
+        this.state.stop();
         console.log("HALT");
         // log.ops("HLT");
     }
@@ -2579,7 +2883,7 @@ export class OpCodes {
             // log.ops(`RNZ`);
             return;
         }
-        this.return("RNZ");
+        this.return();
     }
 
     /**
@@ -2600,14 +2904,14 @@ export class OpCodes {
             // log.ops(`JNZ`);
             return;
         }
-        this.jump("JNZ");
+        this.jump();
     }
 
     /**
      * PC <= adr
      */
     public 0xc3 = () => {
-        this.jump("JMP");
+        this.jump();
     }
 
     /**
@@ -2619,7 +2923,7 @@ export class OpCodes {
             // log.ops(`CNZ`);
             return;
         }
-        this.call("CNZ");
+        this.call();
     }
 
     /**
@@ -2660,7 +2964,7 @@ export class OpCodes {
             // log.ops(`RZ`);
             return;
         }
-        this.return("RZ");
+        this.return();
     }
 
     /**
@@ -2668,7 +2972,7 @@ export class OpCodes {
      * PC.lo <- (sp); PC.hi<-(sp+1); SP <- SP+2
      */
     public 0xc9 = () => {
-        this.return("RET");
+        this.return();
     }
 
     /**
@@ -2680,7 +2984,7 @@ export class OpCodes {
             // log.ops(`JZ`);
             return;
         }
-        this.jump("JZ");
+        this.jump();
     }
 
     /**
@@ -2692,43 +2996,14 @@ export class OpCodes {
             // log.ops(`CZ`);
             return;
         }
-        this.call("CZ");
+        this.call();
     }
 
     /**
      * (SP-1)<-PC.hi;(SP-2)<-PC.lo;SP<-SP-2;PC=adr
      */
     public 0xcd = () => {
-        // if (cpudiag) {
-        //     if (this.state.memory.get16(this.state.register.pc + 1) == 0x05) {
-        //         // log.ops(`CALL ${this.state.memory.get16(this.state.register.pc + 1)}`);
-        //         if (this.state.register.c === 0x09) {
-        //             let addr = this.state.register.de;
-        //             let chr = String.fromCharCode(this.state.memory.get(addr));
-        //             let str = "";
-        //             while (chr !== "$") {
-        //                 str += chr;
-        //                 chr = String.fromCharCode(this.state.memory.get(++addr));
-        //             }
-        //             console.log(str);
-        //             this.state.ready = false;
-        //             this.state.register.pc += 3;
-        //             return;
-        //         } else if (this.state.register.c === 0x02) {
-        //             console.log("print routine called");
-        //             this.state.ready = false;
-        //             this.state.register.pc += 3;
-        //             return;
-        //         }
-        //     } else if (this.state.memory.get16(this.state.register.pc + 1) === 0x00) {
-        //         // log.ops(`CALL ${this.state.memory.get16(this.state.register.pc + 1)}`);
-        //         this.state.ready = false;
-        //         console.log("other print routine called");
-        //         this.state.register.pc += 3;
-        //         return;
-        //     }
-        // }
-        this.call("CALL");
+        this.call();
     }
 
     /**
@@ -2760,7 +3035,7 @@ export class OpCodes {
             // log.ops(`RNC`);
             return;
         }
-        this.return("RNC");
+        this.return();
     }
 
     /**
@@ -2781,7 +3056,7 @@ export class OpCodes {
             // log.ops(`JNC`);
             return;
         }
-        this.jump("JNC");
+        this.jump();
     }
 
     /**
@@ -2807,7 +3082,7 @@ export class OpCodes {
             // log.ops(`CNC`);
             return;
         }
-        this.call("CNC");
+        this.call();
     }
 
     /**
@@ -2848,7 +3123,7 @@ export class OpCodes {
             // log.ops(`RC`);
             return;
         }
-        this.return("RC");
+        this.return();
     }
 
     /**
@@ -2860,7 +3135,7 @@ export class OpCodes {
             // log.ops(`JC`);
             return;
         }
-        this.jump("JC");
+        this.jump();
     }
 
     /**
@@ -2886,7 +3161,7 @@ export class OpCodes {
             // log.ops(`CC`);
             return;
         }
-        this.call("CC");
+        this.call();
     }
 
     /**
@@ -2918,7 +3193,7 @@ export class OpCodes {
             // log.ops(`RPO`);
             return;
         }
-        this.return("RPO");
+        this.return();
     }
 
     /**
@@ -2939,7 +3214,7 @@ export class OpCodes {
             // log.ops(`JPO`);
             return;
         }
-        this.jump("JPO");
+        this.jump();
     }
 
     /**
@@ -2964,7 +3239,7 @@ export class OpCodes {
             // log.ops(`CPO`);
             return;
         }
-        this.call("CPO");
+        this.call();
     }
 
     /**
@@ -3005,7 +3280,7 @@ export class OpCodes {
             // log.ops(`RPE`);
             return;
         }
-        this.return("RPE");
+        this.return();
     }
 
     /**
@@ -3025,7 +3300,7 @@ export class OpCodes {
             // log.ops(`JPE`);
             return;
         }
-        this.jump("JPE");
+        this.jump();
     }
 
     /**
@@ -3046,7 +3321,7 @@ export class OpCodes {
             // log.ops(`CPE`);
             return;
         }
-        this.call("CPE");
+        this.call();
     }
 
     /**
@@ -3078,7 +3353,7 @@ export class OpCodes {
             // log.ops(`RP`);
             return;
         }
-        this.return("RP");
+        this.return();
     }
 
     /**
@@ -3099,7 +3374,7 @@ export class OpCodes {
             // log.ops(`JP`);
             return;
         }
-        this.jump("JP");
+        this.jump();
     }
 
     /**
@@ -3120,7 +3395,7 @@ export class OpCodes {
             // log.ops(`CP`);
             return;
         }
-        this.call("CP");
+        this.call();
     }
 
     /**
@@ -3161,7 +3436,7 @@ export class OpCodes {
             // log.ops(`RM`);
             return;
         }
-        this.return("RM");
+        this.return();
     }
 
     /**
@@ -3182,7 +3457,7 @@ export class OpCodes {
             // log.ops(`JM`);
             return;
         }
-        this.jump("JM");
+        this.jump();
     }
 
     /**
@@ -3203,7 +3478,7 @@ export class OpCodes {
             // log.ops(`CM`);
             return;
         }
-        this.call("CM");
+        this.call();
     }
 
     /**
@@ -3227,10 +3502,8 @@ export class OpCodes {
 
     /**
      * Call address contained in bytes 2 and 3
-     *
-     * @param {string} type
      */
-    private call(type: string): void {
+    private call(): void {
         this.push(this.state.register.pc + 3);
         this.state.register.pc = this.state.memory.get16(this.state.register.pc + 1);
         // log.ops(`${type} ${this.state.register.pc.toString(16)}`);
@@ -3239,7 +3512,7 @@ export class OpCodes {
     /**
      * Jump to address contained in bytes 2 and 3
      */
-    private jump(type: string): void {
+    private jump(): void {
         let addr = this.state.memory.get16(this.state.register.pc + 1);
         this.state.register.pc = addr;
         // log.ops(`${type} ${addr.toString(16)}`);
@@ -3251,7 +3524,7 @@ export class OpCodes {
     private pop(): number {
         let val = this.state.memory.get16(this.state.register.sp);
         this.state.register.sp += 2;
-        this.state.stack.pop();
+        // this.state.stack.pop();
         return val;
     }
 
@@ -3263,7 +3536,7 @@ export class OpCodes {
     private push(val: number): void {
         this.state.register.sp -= 2;
         this.state.memory.set16(this.state.register.sp, val);
-        this.state.stack.push(val.toString(16).padStart(4, "0"));
+        // this.state.stack.push(val.toString(16).padStart(4, "0"));
     }
 
     /**
@@ -3271,7 +3544,7 @@ export class OpCodes {
      *
      * @param {string} type
      */
-    private return(type: string): void {
+    private return(): void {
         this.state.register.pc = this.pop();
         // this.state.register.pc += 1;
         // log.ops(`${type} ${this.state.register.pc.toString(16)}`);
@@ -3295,21 +3568,4 @@ export class OpCodes {
     constructor(state: State8080) {
         this.state = state;
     }
-}
-
-/**
- * Polyfill for ArrayBuffer transfer ability
- */
-if (typeof ArrayBuffer.transfer === "undefined") {
-    ArrayBuffer.transfer = function(source: ArrayBuffer, length: number) {
-        if (!(source instanceof ArrayBuffer))
-            throw new TypeError('Source must be an instance of ArrayBuffer');
-        if (length <= source.byteLength)
-            return source.slice(0, length);
-        let sourceView = new Uint8Array(source);
-        let destView = new Uint8Array(new ArrayBuffer(length));
-        let offset = 0;//cpudiag ? 0x100 : 0;
-        destView.set(sourceView, offset);
-        return destView.buffer;
-    };
 }
