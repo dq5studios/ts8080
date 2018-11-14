@@ -127,10 +127,8 @@ class State8080 {
      */
     public start(): void {
         if (this.ready) {
-        // while (this.ready) {
-            // this.time = this.now();
+            this.time = this.now();
             this.cycle();
-            setTimeout(() => { this.start(); });
         }
     }
 
@@ -165,7 +163,7 @@ class State8080 {
                     // A register contains how many cycles to wait
                     let len = this.register.a / 0x40;
                     console.log(`delay for ${len} seconds`);
-                    setTimeout(() => { this.time = this.now(); this.cycle(); }, 1000 * len);
+                    setTimeout(() => { this.cycle(); }, 1000 * len);
                     return;
                 }
             }
@@ -177,6 +175,7 @@ class State8080 {
             }
             this.cycles -= this.ops.cycle[opcode];
         }
+        setTimeout(() => { this.cycle(); });
     }
 
     /**
