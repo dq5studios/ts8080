@@ -111,6 +111,9 @@ class Invaders {
         invaders.cpu8080.terminate();
     }
 
+    /**
+     * Draw the screen and send alternating interrupts.  Not exactly how the original hardware worked
+     */
     public drawScreenToggle() {
         invaders.cpu8080.postMessage({"action": "memory"});
         invaders.drawScreen();
@@ -122,6 +125,9 @@ class Invaders {
         invaders.screen_cycle ^= 1;
     }
 
+    /**
+     * Write the vram to a canvas element
+     */
     public drawScreen() {
         let width = 256;
         let height = 224;
@@ -139,6 +145,11 @@ class Invaders {
         invaders.screen.putImageData(raw, 0, 0);
     }
 
+    /**
+     * Receives the vram from the 8080 web worker and assigns it to a local dataview
+     *
+     * @param {MessageEvent} event
+     */
     public receiveMemory(event: MessageEvent) {
         invaders.memory = new DataView(event.data[0]);
     }

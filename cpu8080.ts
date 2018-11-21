@@ -62,14 +62,8 @@ function commandDispatch(event: MessageEvent): void {
             break;
         case "memory":
             // Send back the vram
-            // from 0x2400 to 0x4000, 0x1c00
-            // let length = 0x4000;
-            let vram = machine.memory.memory.buffer;
-            // let destView = new Uint8Array(new ArrayBuffer(length));
-            // let offset = 0;
-            // destView.set(sourceView, offset);
-            // let vram = new DataView(destView.buffer);
-            self.postMessage([vram]);
+            let vram = machine.memory.memory;
+            self.postMessage(vram, "*", [vram.buffer]);
             break;
     }
 }
@@ -884,7 +878,7 @@ class IO8080 {
      * bit 7= NC (not wired)
      */
     public set 0x03(v: number) {
-        // console.log(`Play sound #${v}`);
+        console.log(`Play sound #${v}`);
     }
 
     /**
@@ -908,7 +902,7 @@ class IO8080 {
      * bit 7= NC (not wired)
      */
     public set 0x05(v: number) {
-        // console.log(`Play sound #${v}`);
+        console.log(`Play sound #${v}`);
     }
 
     /**
