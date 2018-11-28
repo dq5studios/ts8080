@@ -62,8 +62,8 @@ function commandDispatch(event: MessageEvent): void {
             break;
         case "memory":
             // Send back the vram
-            let vram = machine.memory.memory;
-            self.postMessage(vram, "*", [vram.buffer]);
+            let vram = machine.memory.memory.buffer;
+            self.postMessage([vram]);
             break;
     }
 }
@@ -156,7 +156,7 @@ class State8080 {
                     this.register.pc = 0x0ae1;
                     // A register contains how many cycles to wait
                     let len = this.register.a / 0x40;
-                    console.log(`delay for ${len} seconds`);
+                    // console.log(`delay for ${len} seconds`);
                     setTimeout(() => { this.cycle(); }, 1000 * len);
                     return;
                 }
@@ -795,6 +795,7 @@ class IO8080 {
     ];
     public port: number[];
     private shift: number = 0; // Internal shift register for 16 bit shifting
+    private shift_amt: number = 0; // Amount to shift when read
 
     /**
      * Write the initial state of the IO ports
@@ -856,14 +857,14 @@ class IO8080 {
      * Shift amount
      */
     public set 0x02(v: number) {
-        this.shift = (((this.shift << v) & 0xffff) >> 8);
+        this.shift_amt = v;
     }
 
     /**
      * Shift results
      */
     public get 0x03() {
-        return this.shift;
+        return ((this.shift << this.shift_amt & 0xffff) >> 8);
     }
 
     /**
@@ -878,7 +879,7 @@ class IO8080 {
      * bit 7= NC (not wired)
      */
     public set 0x03(v: number) {
-        console.log(`Play sound #${v}`);
+        // console.log(`Play sound #${v}`);
     }
 
     /**
@@ -902,7 +903,7 @@ class IO8080 {
      * bit 7= NC (not wired)
      */
     public set 0x05(v: number) {
-        console.log(`Play sound #${v}`);
+        // console.log(`Play sound #${v}`);
     }
 
     /**
